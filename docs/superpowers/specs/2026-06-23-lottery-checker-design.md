@@ -9,7 +9,8 @@
 一个原生 macOS app：用户上传/拖入彩票照片 → 用视觉大模型识别彩种与号码 →
 用户在可编辑表单核对 → 自动从官方网站拉取对应期开奖号码 → 验奖并展示结果。
 已查询过的期数缓存进本地数据库，可浏览历史、支持「立即查询」，命中缓存则不再爬取。
-已验奖的记录（含上传原图）也入库，可查看列表与详情。开奖记录标注数据来源。
+上传的彩票（含原图）入库成列表，每张票可用多个数据源多次验奖、保存多条验奖记录；
+开奖记录按数据源带版本（首版抓取、后续手动修改），验奖记录精确引用所用版本。
 
 ## 2. 关键决策（已确认）
 
@@ -19,23 +20,29 @@
 - **识别确认**：识别后填入**可编辑确认表单**，用户核对/修改后再验奖（防误读）。
 - **数据存储**：**本地 SwiftData，iCloud-ready**。代码按可升级 CloudKit 的方式写，
   日后配置付费开发者账号 + CloudKit 容器即可开启每用户私有 iCloud 同步，无需改业务逻辑。
-- **验奖记录入库**：每次验奖保存为 `TicketRecord`（含上传原图、确认后的号码、验奖结果、时间），可查看列表/详情/原图。
-- **开奖来源标识**：`DrawRecord` 加 `source` 字段标识数据来源：`officialSporttery`(体彩) / `officialCWL`(福彩) / `webService`(自建 Web 服务) / `manual`(手动录入)。
+- **以彩票为中心**：上传并确认后即保存为一张 `Ticket`，并立即选一种数据源做首次验奖。
+  彩票列表展示所有上传的票；点进可看其全部验奖记录，并可选不同数据源**再次验奖**（一张票多条验奖记录），
+  避免单一数据源不准导致结论错误。
+- **开奖记录带版本**：`Draw` 按 **(彩种, 期数, 数据源)** 唯一，其下挂多个 **`DrawVersion`**：
+  v1 = 数据源抓取，v2/v3… = 手动修改。**版本不可变，修改即新增版本**，保留完整历史。
+- **验奖记录引用具体版本**：每条验奖记录精确指向所用的 `DrawVersion`，
+  因而记录了「用哪个数据源的哪个版本」+ 号码快照 + 结果。手动改源后旧记录仍指旧版本，重验才生成对新版本的新记录。
+- **数据来源标识**：`source` 字段：`officialSporttery`(体彩) / `officialCWL`(福彩) / `webService`(自建 Web 服务) / `manual`(手动录入)。
 - **新增数据源**：除官方接口外，新增可配置的 **Web 服务数据源**（见配套 Web 服务 spec）。
 
 ## 3. 总体架构
 
 ```
 UI 层 (SwiftUI Views)
-  ├─ 验奖流程：拖拽/选择图片 → 识别中 → 可编辑确认表单 → 验奖结果
-  ├─ 开奖记录页：已查询期数列表 + 「立即查询」按钮 + 来源标签
-  └─ 验奖记录页：历史验奖列表 → 详情（含原图、号码、结果）
+  ├─ 验奖流程：拖拽/选择图片 → 识别中 → 可编辑确认表单 → 选数据源 → 验奖结果
+  ├─ 彩票列表页：所有上传彩票 → 彩票详情（原图/号码 + 多条验奖记录 + 再次验奖）
+  └─ 开奖记录页：开奖列表(彩种+期数+来源) + 版本历史 + 手动修改(新增版本) + 「立即查询」
 应用层 (ViewModels / 状态机)
 组件层（互不依赖，各有明确接口，可独立测试）：
   ├─ VisionRecognizer   识别彩票图片 → 结构化结果
-  ├─ DrawDataSource     按彩种+期数拉取开奖数据（可插拔，缓存优先，多源）
+  ├─ DrawDataSource     按彩种+期数+源拉取开奖数据（可插拔，缓存优先，多源）
   ├─ PrizeEvaluator     纯函数：投注号码 + 开奖号码 → 中奖等级/金额
-  ├─ DrawStore          SwiftData 持久层（开奖缓存 + 验奖记录 + 图片）
+  ├─ Store              SwiftData 持久层（Ticket / VerificationRecord / Draw / DrawVersion / 图片）
   └─ SettingsStore      模型配置 + Web 服务数据源配置 持久化
 ```
 
@@ -55,9 +62,11 @@ UI 层 (SwiftUI Views)
 
 ### 4.2 DrawDataSource（开奖数据，可插拔 + 缓存优先）
 - 接口：`func fetchDraw(category:, issue:) async throws -> DrawResult`
-  返回开奖号码 + 各奖级奖金（一/二等奖浮动金额直接取官方返回值）+ 开奖日期。
-- **缓存优先策略**：验奖/查询时先查 `DrawStore`，命中直接返回（标注来源=缓存）；
-  未命中才发起网络抓取，成功后写入 `DrawStore`。
+  返回开奖号码 + 各奖级奖金（一/二等奖浮动金额直接取官方返回值）+ 开奖日期 + source。
+- **缓存优先策略（按数据源隔离）**：验奖时针对**选定的数据源**先查 `Draw(category, issue, source)`，
+  命中则用其**最新版本**（不再联网）；未命中才联网抓取，成功后建 `Draw` + `DrawVersion` v1(origin=fetched)。
+  - 列表/详情可手动「刷新」强制重新抓取该源 → 若号码与最新版本不同则记为新版本。
+  - 验奖始终基于具体 `DrawVersion`，验奖记录保存该版本引用。
 - 内置实现（按设置中选定的优先级尝试）：
   - `SportteryDataSource`（大乐透官方）：`webapi.sporttery.cn`，带 User-Agent / Referer。
   - `CWLDataSource`（双色球官方）：`www.cwl.gov.cn`，带 UA / Referer，
@@ -83,17 +92,33 @@ UI 层 (SwiftUI Views)
     七等(4+0)/八等(3+1或2+2)/九等(3+0或1+2或2+1或0+2)。
     一、二等浮动；其余固定。
 
-### 4.4 DrawStore（SwiftData 持久层）
-- 模型 `DrawRecord`：category, issue, frontNumbers, backNumbers,
-  prizeTiers（各奖级金额，可空）, drawDate, fetchedAt, **source**（来源标签）。
-  - 唯一键：category + issue（避免重复）；更新时刷新 source/金额/时间。
-- 模型 `TicketRecord`（验奖记录）：category, issue, bets（确认后的投注号码）,
-  result（每注奖级/金额/合计的快照）, **imageFileName**（原图文件名）, createdAt,
-  关联的开奖号码快照。
-  - **图片存储**：原图写入沙箱 Application Support 目录，DB 仅存文件名/相对路径
-    （避免大 blob 撑大数据库）。iCloud 升级时图片改用 CKAsset，路径策略已隔离。
-- 提供：开奖查/列/写；验奖记录写/列/详情/删。
-- iCloud-ready：ModelContainer 配置预留 CloudKit 选项，默认关闭（本地）。
+### 4.4 Store（SwiftData 持久层）
+
+四个模型，关系如下：
+
+```
+Ticket 1 ── * VerificationRecord * ── 1 DrawVersion * ── 1 Draw
+```
+
+- **`Ticket`（彩票）**：id, category, issue, bets（确认后的投注号码）,
+  **imageFileName**（原图文件名）, createdAt。一张票 → 多条 `VerificationRecord`。
+- **`VerificationRecord`（验奖记录）**：id, ticket(关系), **drawVersion(关系)**,
+  result（每注命中/奖级/金额/合计的快照）, createdAt。
+  - 通过 drawVersion 可溯源到「数据源 + 版本号 + 开奖号码」。结果做快照，版本不可变保证可复现。
+- **`Draw`（开奖记录组）**：id, category, issue, **source**（来源标签）。
+  - 唯一键：category + issue + source。一个 Draw → 多个 `DrawVersion`。
+- **`DrawVersion`（开奖版本，不可变）**：id, draw(关系), **versionNumber**(1,2,3…),
+  frontNumbers, backNumbers, prizes（各奖级金额，可空）, drawDate,
+  **origin**（`fetched` 数据源抓取 / `manualEdit` 手动修改）, createdAt。
+  - 手动修改 = 新增一个 versionNumber+1 的版本；已存在版本永不变更（验奖记录依赖其稳定）。
+
+**图片存储**：原图写入沙箱 Application Support 目录，DB 仅存文件名/相对路径
+（避免大 blob 撑大数据库）。iCloud 升级时图片改用 CKAsset，路径策略已隔离。
+
+**提供能力**：Ticket 写/列/详情/删；VerificationRecord 写/按票列；
+Draw 按(彩种+期数+源)查、列；DrawVersion 取最新/取指定/新增（手动修改）。
+
+iCloud-ready：ModelContainer 配置预留 CloudKit 选项，默认关闭（本地）。
 
 ### 4.5 SettingsStore
 - 模型：Base URL / API Key / 模型名。
@@ -102,22 +127,31 @@ UI 层 (SwiftUI Views)
 
 ## 5. 数据流
 
-**验奖流程**：拖入图片 → VisionRecognizer 识别 → 可编辑确认表单（彩种下拉、
-期数、号码格子）→ 点「验奖」→ DrawDataSource（缓存优先）取该期开奖 →
-PrizeEvaluator 比对 → 结果页（每注命中高亮 + 奖级 + 金额 + 合计；标注数据来源=缓存/官方）。
+**首次验奖**：拖入图片 → VisionRecognizer 识别 → 可编辑确认表单（彩种、期数、号码格子）→
+保存为 `Ticket` → **选数据源** → DrawDataSource（按源缓存优先）取该期 `DrawVersion` →
+PrizeEvaluator 比对 → 结果页（每注命中高亮 + 奖级 + 金额 + 合计 + 数据源/版本标注）→
+保存为该票的一条 `VerificationRecord`。
 
-**立即查询**：历史页输入彩种 + 期数 → DrawDataSource（缓存优先）→ 展示开奖号码并入库。
+**再次验奖**：彩票详情页 → 选另一数据源（或刷新某源）→ 取/建对应 `DrawVersion` →
+比对 → 追加一条 `VerificationRecord`（同票多条并存，便于跨源对比）。
+
+**手动修改开奖**：开奖记录页选某 `Draw(彩种+期数+源)` → 编辑号码/奖金 →
+新增一个 `DrawVersion`(origin=manualEdit)；旧版本与依赖它的旧验奖记录不受影响。
+
+**立即查询**：开奖记录页输入彩种 + 期数 + 选源 → DrawDataSource（缓存优先）→ 展示并入库。
 
 ## 6. UI 页面
 
-1. **主验奖页**：图片拖拽区 / 选择按钮 → 识别进度 → 可编辑确认表单 → 「验奖」按钮 → 结果。
-   验奖后自动保存为验奖记录。
-2. **开奖记录页**：已查询期数列表（彩种、期数、开奖号码、日期、**来源标签**），点开看详情；
-   顶部「立即查询」（输入彩种+期数直接抓取入库）。
-3. **验奖记录页**：历史验奖列表，点开详情含**上传原图**、确认号码、每注命中与奖级/金额。
-4. **设置页**：模型 Base URL / Key / 模型名；Web 服务 Base URL / Token / 启用开关 / 数据源优先级；
+1. **主验奖页**：图片拖拽区 / 选择按钮 → 识别进度 → 可编辑确认表单 → 保存彩票 →
+   选数据源 → 「验奖」→ 结果（首条验奖记录自动入库）。
+2. **彩票列表页**：所有上传彩票（缩略图、彩种、期数、最近验奖结果摘要），点进详情。
+3. **彩票详情页**：上传原图、确认号码；其下**全部验奖记录列表**（数据源 + 版本 + 奖级/金额 + 时间）；
+   「换数据源再次验奖」「刷新某源重验」按钮，新记录追加保存。
+4. **开奖记录页**：开奖列表（彩种、期数、来源、最新版本号码、日期）；点开看**版本历史**；
+   「手动修改」新增版本；顶部「立即查询」（彩种+期数+选源 抓取入库）。
+5. **设置页**：模型 Base URL / Key / 模型名；Web 服务 Base URL / Token / 启用开关 / 数据源优先级；
    （可选）官方数据源 endpoint 覆盖。
-5. 复式/胆拖入口：表单中以 disabled / 「开发中」标注。
+6. 复式/胆拖入口：表单中以 disabled / 「开发中」标注。
 
 ## 7. 错误处理
 
@@ -130,7 +164,9 @@ PrizeEvaluator 比对 → 结果页（每注命中高亮 + 奖级 + 金额 + 合
 
 - **PrizeEvaluator**：单元测试覆盖全部奖级（含历史真实开奖样例）——核心正确性保障。
 - **DrawDataSource**：用录制的官方样例 JSON 做解析测试；缓存优先逻辑测试。
-- **DrawStore**：开奖写入/读取/唯一键去重、source 标签持久化；验奖记录写入/读取、图片文件落盘与读取测试。
+- **Store**：Draw 按(彩种+期数+源)唯一去重；DrawVersion 版本号递增与不可变；
+  手动修改新增版本而非覆盖；Ticket↔VerificationRecord 一对多；
+  VerificationRecord 正确引用 DrawVersion；图片文件落盘与读取。
 - **WebServiceDataSource**：用样例响应做解析 + Token 头测试。
 - 识别层、网络实拉、UI：手动验证。
 
