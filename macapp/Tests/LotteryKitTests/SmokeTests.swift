@@ -3,6 +3,6 @@ import XCTest
 
 final class SmokeTests: XCTestCase {
     func testVersion() {
-        XCTAssertEqual(LotteryKit.version, "1.0.0")
+        XCTAssertEqual(LotteryKitInfo.version, "1.0.0")
     }
 }
