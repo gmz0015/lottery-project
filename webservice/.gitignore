@@ -1,0 +1,13 @@
+# backend
+.venv/
+__pycache__/
+*.pyc
+.env
+lottery.db
+backend/data/
+data/
+pgdata/
+
+# frontend
+node_modules/
+dist/
