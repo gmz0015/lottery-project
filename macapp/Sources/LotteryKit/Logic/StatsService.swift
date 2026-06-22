@@ -1,8 +1,9 @@
 import Foundation
 
-public struct TicketStat: Sendable {
+public struct TicketStat: Identifiable {
     public let ticket: Ticket
     public let latest: VerificationRecord?
+    public var id: UUID { ticket.id }
 }
 
 public struct StatsSummary: Equatable, Sendable {
