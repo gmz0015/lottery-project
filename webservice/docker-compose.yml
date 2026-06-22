@@ -1,0 +1,32 @@
+services:
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/lottery.db}
+      API_TOKEN: ${API_TOKEN:?must set}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?must set}
+      READ_REQUIRES_AUTH: ${READ_REQUIRES_AUTH:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+
+  web:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # 可选：docker compose --profile pg up -d
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["pg"]
+    environment:
+      POSTGRES_USER: lottery
+      POSTGRES_PASSWORD: lottery
+      POSTGRES_DB: lottery
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
