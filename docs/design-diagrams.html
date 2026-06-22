@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>彩票验奖 — 设计图总览</title>
+<style>
+  :root { --bg:#0f1419; --panel:#161b22; --fg:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --border:#30363d; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,Roboto,sans-serif;
+         background:var(--bg); color:var(--fg); line-height:1.6; }
+  header { padding:28px 40px; border-bottom:1px solid var(--border); background:var(--panel); position:sticky; top:0; z-index:10; }
+  header h1 { margin:0 0 4px; font-size:22px; }
+  header p { margin:0; color:var(--muted); font-size:13px; }
+  nav { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  nav a { font-size:13px; color:var(--accent); text-decoration:none; padding:4px 10px; border:1px solid var(--border); border-radius:6px; }
+  nav a:hover { background:#21262d; }
+  main { max-width:1100px; margin:0 auto; padding:24px 40px 80px; }
+  section { margin:40px 0; }
+  h2 { font-size:18px; border-left:3px solid var(--accent); padding-left:10px; }
+  .cap { color:var(--muted); font-size:13px; margin:-4px 0 16px; }
+  .diagram { background:#fff; border:1px solid var(--border); border-radius:10px; padding:18px; overflow:auto; }
+  .note { background:#1c2128; border:1px solid var(--border); border-left:3px solid #d29922; border-radius:6px;
+          padding:10px 14px; color:var(--muted); font-size:13px; }
+  footer { text-align:center; color:var(--muted); font-size:12px; padding:30px; border-top:1px solid var(--border); }
+  code { background:#21262d; padding:1px 5px; border-radius:4px; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎰 彩票验奖 — 设计图总览</h1>
+  <p>大乐透 / 双色球 验奖 Mac App + 开奖录入 Web 服务 · 生成日期 2026-06-23</p>
+  <nav>
+    <a href="#sys">系统全景</a>
+    <a href="#app-arch">App 架构</a>
+    <a href="#er">ER 数据模型</a>
+    <a href="#nav">App 导航</a>
+    <a href="#seq-verify">时序·首次验奖</a>
+    <a href="#seq-reverify">时序·再次验奖</a>
+    <a href="#seq-edit">时序·手动改开奖</a>
+    <a href="#seq-web">时序·Web服务录入与拉取</a>
+    <a href="#deploy">Web 服务部署</a>
+  </nav>
+</header>
+
+<main>
+  <p class="note">本页用 Mermaid 渲染图表，需联网加载其 CDN。配套文字设计见
+  <code>docs/superpowers/specs/2026-06-23-lottery-checker-design.md</code> 与
+  <code>2026-06-23-lottery-webservice-design.md</code>。</p>
+
+  <section id="sys">
+    <h2>1. 系统全景</h2>
+    <p class="cap">Mac App 通过可插拔数据源获取开奖；数据源含官方接口与自建 Web 服务；模型走 OpenAI 兼容协议。</p>
+    <pre class="mermaid">
+flowchart LR
+  subgraph MAC["Mac App (SwiftUI)"]
+    UI["界面层"]
+    VM["ViewModel / 状态机"]
+    CORE["核心组件<br/>VisionRecognizer · DrawDataSource<br/>PrizeEvaluator · StatsService"]
+    STORE["Store (SwiftData, iCloud-ready)"]
+  end
+  LLM["视觉大模型<br/>(OpenAI 兼容, 用户自配)"]
+  OFF1["官方·体彩<br/>webapi.sporttery.cn"]
+  OFF2["官方·福彩<br/>www.cwl.gov.cn"]
+  subgraph WEB["开奖录入 Web 服务"]
+    FE["React 前端"]
+    API["FastAPI 后端 (Bearer Token)"]
+    DB["数据库<br/>SQLite(卷挂载) / Postgres"]
+    FE --> API --> DB
+  end
+
+  UI --> VM --> CORE
+  CORE --> STORE
+  CORE -->|"识别"| LLM
+  CORE -->|"抓取开奖"| OFF1
+  CORE -->|"抓取开奖"| OFF2
+  CORE -->|"抓取开奖 (GET /api/v1/draws)"| API
+    </pre>
+  </section>
+
+  <section id="app-arch">
+    <h2>2. Mac App 组件架构</h2>
+    <p class="cap">各组件互不依赖、接口清晰、可独立测试；PrizeEvaluator 与 StatsService 为纯函数。</p>
+    <pre class="mermaid">
+flowchart TB
+  subgraph VIEWS["UI 页面"]
+    HOME["首页 Dashboard"]
+    VERIFY["验奖流程页"]
+    LIST["彩票列表页"]
+    DETAIL["彩票详情页 (导航目的页)"]
+    OVERVIEW["验奖结果总览页"]
+    STATS["统计页 (日历 + Swift Charts)"]
+    SET["设置页"]
+    SHEET["开奖版本浮层"]
+  end
+  subgraph LOGIC["组件层"]
+    VR["VisionRecognizer"]
+    DS["DrawDataSource (可插拔/缓存优先/多源)"]
+    PE["PrizeEvaluator (纯函数)"]
+    SS["StatsService (纯函数聚合)"]
+    STORE["Store (SwiftData)"]
+    CFG["SettingsStore"]
+  end
+  VIEWS --> LOGIC
+  DS --> STORE
+  PE --> STORE
+  SS --> STORE
+  VR -->|"OpenAI 兼容"| CFG
+  DS -->|"endpoint/Token"| CFG
+  LIST --> DETAIL
+  DETAIL --> SHEET
+  HOME --> SHEET
+    </pre>
+  </section>
+
+  <section id="er">
+    <h2>3. ER 数据模型 (App 本地)</h2>
+    <p class="cap">以彩票为中心：一张票多条验奖记录；开奖按 (彩种+期数+源) 唯一并带不可变版本；验奖记录精确引用某版本。</p>
+    <pre class="mermaid">
+erDiagram
+  TICKET ||--o{ VERIFICATION_RECORD : "一张票多条验奖"
+  DRAW ||--o{ DRAW_VERSION : "多个不可变版本"
+  DRAW_VERSION ||--o{ VERIFICATION_RECORD : "被引用(可复现)"
+
+  TICKET {
+    uuid id
+    string category "dlt|ssq"
+    string issue
+    json bets "确认后投注号码"
+    string imageFileName "原图(沙箱文件)"
+    decimal cost "默认 注数x¥2"
+    date purchaseDate
+    datetime createdAt
+  }
+  VERIFICATION_RECORD {
+    uuid id
+    ref ticket
+    ref drawVersion "决定 源+版本+号码"
+    json result "命中/奖级/金额/合计 快照"
+    datetime createdAt
+  }
+  DRAW {
+    uuid id
+    string category
+    string issue
+    string source "体彩|福彩|webService|manual"
+  }
+  DRAW_VERSION {
+    uuid id
+    ref draw
+    int versionNumber "1,2,3..."
+    json frontNumbers
+    json backNumbers
+    json prizes "各奖级金额,可空"
+    date drawDate
+    string origin "fetched|manual"
+    string sourceURL "仅fetched,可点击"
+    datetime createdAt
+  }
+    </pre>
+    <p class="note">唯一键：<code>DRAW = category + issue + source</code>。版本不可变，手动修改 = 新增版本，旧版本与依赖它的旧验奖记录不受影响。</p>
+  </section>
+
+  <section id="nav">
+    <h2>4. App 导航结构</h2>
+    <p class="cap">侧边栏 6 项；彩票详情为列表点击进入的导航目的页（带返回/面包屑）；开奖版本为浮层。</p>
+    <pre class="mermaid">
+flowchart LR
+  ROOT(("App")) --> SB{{"侧边栏"}}
+  SB --> HOME["首页 Dashboard"]
+  SB --> VERIFY["验奖"]
+  SB --> LIST["彩票列表"]
+  SB --> OVERVIEW["验奖结果总览"]
+  SB --> STATS["统计"]
+  SB --> SET["设置"]
+  LIST -->|"点击某票 (push, 可返回)"| DETAIL["彩票详情页"]
+  DETAIL -->|"验奖记录"| SHEET["开奖版本浮层"]
+  HOME -->|"立即查询"| SHEET
+    </pre>
+  </section>
+
+  <section id="seq-verify">
+    <h2>5. 时序图 · 首次验奖</h2>
+    <p class="cap">识别 → 可编辑确认 → 保存彩票 → 选源(缓存优先)取版本 → 比对 → 保存验奖记录。</p>
+    <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  actor U as 用户
+  participant UI as 界面
+  participant VR as VisionRecognizer
+  participant LLM as 视觉模型
+  participant DS as DrawDataSource
+  participant NET as 数据源(官方/Web)
+  participant PE as PrizeEvaluator
+  participant ST as Store
+
+  U->>UI: 拖入彩票图片
+  UI->>VR: recognize(image)
+  VR->>LLM: chat/completions (图片+提示)
+  LLM-->>VR: JSON(彩种/期数/号码)
+  VR-->>UI: RecognizedTicket
+  UI-->>U: 可编辑确认表单
+  U->>UI: 核对/修改 + 选数据源 + 点验奖
+  UI->>ST: 保存 Ticket
+  UI->>DS: fetchDraw(category, issue, source)
+  alt 该源缓存命中
+    DS->>ST: 取最新 DrawVersion
+  else 未命中
+    DS->>NET: 请求开奖
+    NET-->>DS: 号码/奖金/sourceURL
+    DS->>ST: 建 Draw + DrawVersion(v1, fetched)
+  end
+  DS-->>UI: DrawVersion
+  UI->>PE: evaluate(bets, drawVersion)
+  PE-->>UI: 每注奖级/金额/合计
+  UI->>ST: 保存 VerificationRecord(引用该版本)
+  UI-->>U: 结果页
+    </pre>
+  </section>
+
+  <section id="seq-reverify">
+    <h2>6. 时序图 · 再次验奖（换源 / 刷新）</h2>
+    <p class="cap">同一张票，换数据源或刷新某源，追加一条验奖记录，便于跨源对比。</p>
+    <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  actor U as 用户
+  participant UI as 彩票详情页
+  participant DS as DrawDataSource
+  participant NET as 另一数据源
+  participant PE as PrizeEvaluator
+  participant ST as Store
+
+  U->>UI: 选另一数据源 / 刷新某源
+  UI->>DS: fetchDraw(category, issue, source2)
+  alt 命中且无需刷新
+    DS->>ST: 取最新 DrawVersion
+  else 刷新或未命中
+    DS->>NET: 请求开奖
+    NET-->>DS: 号码/sourceURL
+    DS->>ST: 号码有变则新增 DrawVersion
+  end
+  DS-->>UI: DrawVersion
+  UI->>PE: evaluate(bets, drawVersion)
+  PE-->>UI: 结果
+  UI->>ST: 追加 VerificationRecord
+  UI-->>U: 该票多条验奖并存
+    </pre>
+  </section>
+
+  <section id="seq-edit">
+    <h2>7. 时序图 · 手动修改开奖版本</h2>
+    <p class="cap">编辑即新增版本（origin=manual），历史版本与旧验奖记录稳定不变；可选新版本重验。</p>
+    <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  actor U as 用户
+  participant SH as 开奖版本浮层
+  participant ST as Store
+  participant PE as PrizeEvaluator
+
+  U->>SH: 打开某 Draw(彩种+期数+源)
+  SH->>ST: 读取版本历史
+  ST-->>SH: v1(fetched) ... vN
+  U->>SH: 编辑号码/奖金
+  SH->>ST: 新增 DrawVersion(vN+1, manual)
+  Note over ST: 旧版本不可变<br/>旧验奖记录仍指旧版本
+  U->>SH: 选新版本重验
+  SH->>PE: evaluate(bets, 新版本)
+  PE-->>SH: 结果
+  SH->>ST: 追加 VerificationRecord(引用新版本)
+    </pre>
+  </section>
+
+  <section id="seq-web">
+    <h2>8. 时序图 · Web 服务录入 + App 拉取</h2>
+    <p class="cap">浏览器登录后录入开奖（号码+可选奖金）入库；App 经 API 拉取并存为 source=webService 的版本。</p>
+    <pre class="mermaid">
+sequenceDiagram
+  autonumber
+  actor A as 我(浏览器)
+  participant FE as React 前端
+  participant API as FastAPI
+  participant DB as 数据库
+  participant APP as Mac App
+
+  A->>FE: 登录(共享口令)
+  FE->>API: POST /api/v1/auth/login
+  API-->>FE: Token
+  A->>FE: 录入 期数+号码(+奖金)
+  FE->>API: POST /api/v1/draws (Bearer)
+  API->>DB: upsert (category+issue)
+  DB-->>API: ok
+  Note over APP: 之后 App 验奖选用 Web 服务源
+  APP->>API: GET /api/v1/draws/{cat}/{issue} (Bearer)
+  API->>DB: 查询
+  DB-->>API: 开奖记录
+  API-->>APP: JSON(号码/奖金?)
+  APP->>APP: 存为 DrawVersion(source=webService, fetched)
+    </pre>
+  </section>
+
+  <section id="deploy">
+    <h2>9. Web 服务部署 (Docker)</h2>
+    <p class="cap">git 拉取 → 构建镜像 → compose 启动。SQLite 文件卷挂载防丢；可切腾讯云/Docker Postgres。</p>
+    <pre class="mermaid">
+flowchart TB
+  GIT["服务器: git clone/pull"] --> BUILD["docker compose build"]
+  BUILD --> UP["docker compose up -d"]
+  subgraph HOST["宿主机"]
+    subgraph COMPOSE["docker compose"]
+      WEBC["web 容器<br/>nginx + React 静态"]
+      APIC["api 容器<br/>FastAPI/uvicorn"]
+      PGC["(可选) postgres 容器"]
+    end
+    VOL[("宿主卷<br/>./data:/data<br/>SQLite 持久化")]
+  end
+  TENCENT["(可选) 腾讯云托管 Postgres"]
+  UP --> COMPOSE
+  WEBC -->|"反代 /api"| APIC
+  APIC -->|"默认"| VOL
+  APIC -.->|"DATABASE_URL 切换"| PGC
+  APIC -.->|"DATABASE_URL 切换"| TENCENT
+    </pre>
+  </section>
+</main>
+
+<footer>由设计文档生成 · 修改设计后可重新生成本页</footer>
+
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: true, theme: "default", securityLevel: "loose",
+    flowchart: { useMaxWidth: true }, sequence: { useMaxWidth: true } });
+</script>
+</body>
+</html>
