@@ -27,6 +27,8 @@
   每个版本带 `origin`（`fetched` 数据源抓取 / `manual` 手动新增或修改）。
   v1 通常由数据源抓取得到（origin=fetched）；若是你手动新增的开奖（source=manual），v1 即手动录入（origin=manual）。
   **版本不可变，修改即新增版本**，保留完整历史。
+- **抓取版本记录来源 URL**：`fetched` 版本同步保存 `sourceURL`（优先人类可读结果页，否则请求 URL），
+  在 UI 中可点击，调用系统默认浏览器打开对应页面；`manual` 版本无 URL。
 - **验奖记录引用具体版本**：每条验奖记录精确指向所用的 `DrawVersion`，
   因而记录了「用哪个数据源的哪个版本」+ 号码快照 + 结果。手动改源后旧记录仍指旧版本，重验才生成对新版本的新记录。
 - **数据来源标识**：`source` 字段：`officialSporttery`(体彩) / `officialCWL`(福彩) / `webService`(自建 Web 服务) / `manual`(手动录入)。
@@ -76,7 +78,8 @@ UI 层 (SwiftUI Views)
 
 ### 4.2 DrawDataSource（开奖数据，可插拔 + 缓存优先）
 - 接口：`func fetchDraw(category:, issue:) async throws -> DrawResult`
-  返回开奖号码 + 各奖级奖金（一/二等奖浮动金额直接取官方返回值）+ 开奖日期 + source。
+  返回开奖号码 + 各奖级奖金（一/二等奖浮动金额直接取官方返回值）+ 开奖日期 + source + **sourceURL**。
+  - 每个实现给出 `sourceURL`：优先该期人类可读结果页（如官方开奖公告页/Web 服务详情页），否则用实际请求 URL。
 - **缓存优先策略（按数据源隔离）**：验奖时针对**选定的数据源**先查 `Draw(category, issue, source)`，
   命中则用其**最新版本**（不再联网）；未命中才联网抓取，成功后建 `Draw` + `DrawVersion` v1(origin=fetched)。
   - 列表/详情可手动「刷新」强制重新抓取该源 → 若号码与最新版本不同则记为新版本。
@@ -124,7 +127,8 @@ Ticket 1 ── * VerificationRecord * ── 1 DrawVersion * ── 1 Draw
   - 唯一键：category + issue + source。一个 Draw → 多个 `DrawVersion`。
 - **`DrawVersion`（开奖版本，不可变）**：id, draw(关系), **versionNumber**(1,2,3…),
   frontNumbers, backNumbers, prizes（各奖级金额，可空）, drawDate,
-  **origin**（`fetched` 数据源抓取 / `manual` 手动新增或修改）, createdAt。
+  **origin**（`fetched` 数据源抓取 / `manual` 手动新增或修改）,
+  **sourceURL**（仅 fetched：来源/查看链接，可空）, createdAt。
   - origin 与版本号无关：抓取来的版本 fetched，手动新增/修改的版本 manual。
   - 手动新增/修改 = 新增一个 versionNumber+1 的版本；已存在版本永不变更（验奖记录依赖其稳定）。
 
@@ -189,8 +193,8 @@ PrizeEvaluator 比对 → 结果页（每注命中高亮 + 奖级 + 金额 + 合
    内容：上传原图、确认号码；其下**全部验奖记录列表**（数据源 + 版本 + 奖级/金额 + 时间）；
    「换数据源再次验奖」「刷新某源重验」按钮，新记录追加保存；每条记录可打开**开奖版本浮层**查看/管理该期开奖。
 8. **开奖版本浮层(sheet)**：针对某 `Draw(彩种+期数+源)` 展示**版本历史**
-   （各版本标注 origin：抓取 / 手动）；可「手动新增/修改」生成新版本、选某版本重验。
-   从「彩票详情页」的验奖记录或「首页 立即查询」打开。
+   （各版本标注 origin：抓取 / 手动；抓取版本显示**可点击来源链接**，点击在默认浏览器打开对应页面）；
+   可「手动新增/修改」生成新版本、选某版本重验。从「彩票详情页」的验奖记录或「首页 立即查询」打开。
 
 复式/胆拖入口：确认表单中以 disabled / 「开发中」标注。
 
