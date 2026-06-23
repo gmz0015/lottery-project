@@ -1,0 +1,17 @@
+.head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--s4); }
+.title { font-size: 28px; margin: 0; }
+.list { margin-top: var(--s4); display: flex; flex-direction: column; gap: var(--s3); }
+.row { display: block; }
+.row:hover { text-decoration: none; }
+.card { display: flex; align-items: center; gap: var(--s4); padding: var(--s4) var(--s5);
+  transition: box-shadow .15s, transform .15s; }
+.row:hover .card { box-shadow: 0 6px 24px rgba(0,0,0,.1); transform: translateY(-1px); }
+.meta { display: flex; flex-direction: column; gap: 4px; min-width: 96px; }
+.issue { color: var(--text); font-weight: 600; }
+.date { color: var(--text-secondary); font-size: 13px; }
+.balls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: 1; }
+.plus { color: var(--text-secondary); margin: 0 2px; }
+.arrow { color: var(--text-secondary); font-size: 22px; }
+.empty { text-align: center; color: var(--text-secondary); margin-top: var(--s4); }
+.error { color: var(--ssq-red); background: rgba(230,57,70,.1); border-radius: 10px;
+  padding: 8px 12px; font-size: 14px; margin-top: var(--s3); }

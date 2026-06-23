@@ -1,0 +1,4 @@
+.group { display: inline-flex; background: #EFEFF4; border-radius: 10px; padding: 3px; gap: 2px; }
+.seg { font: inherit; border: none; background: transparent; color: var(--text);
+  padding: 6px 16px; border-radius: 8px; cursor: pointer; font-weight: 500; }
+.active { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.12); }

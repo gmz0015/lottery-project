@@ -1,0 +1,7 @@
+.shell { min-height: 100vh; }
+.bar { display: flex; align-items: center; justify-content: space-between;
+  padding: var(--s3) var(--s5); background: rgba(255,255,255,.8);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+.logo { font-weight: 700; color: var(--text); }
+.main { max-width: 880px; margin: 0 auto; padding: var(--s6) var(--s4); }

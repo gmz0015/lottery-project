@@ -1,0 +1,4 @@
+.field { display: flex; justify-content: space-between; align-items: baseline;
+  padding: 12px 0; border-bottom: 1px solid var(--border); gap: var(--s4); }
+.label { color: var(--text-secondary); font-size: 14px; }
+.value { font-weight: 600; }

@@ -1,0 +1,13 @@
+.ball {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; color: #fff; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background-image: linear-gradient(160deg, rgba(255,255,255,.35), rgba(255,255,255,0) 55%);
+  box-shadow: inset 0 -2px 4px rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.2);
+}
+.lg { width: 48px; height: 48px; font-size: 20px; }
+.md { width: 36px; height: 36px; font-size: 16px; }
+.sm { width: 28px; height: 28px; font-size: 13px; }
+.ssq-red, .dlt-front { background-color: var(--ssq-red); }
+.ssq-blue { background-color: var(--ssq-blue); }
+.dlt-back { background-color: var(--dlt-back); }

@@ -1,0 +1,9 @@
+.shell { min-height: 100vh; display: flex; flex-direction: column; }
+.bar { display: flex; align-items: center; justify-content: space-between;
+  padding: var(--s3) var(--s5); position: sticky; top: 0; z-index: 10;
+  background: rgba(251,251,253,.8); backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--border); }
+.logo { font-weight: 700; font-size: 18px; color: var(--text); }
+.footer { margin-top: auto; display: flex; gap: var(--s5); justify-content: center;
+  align-items: center; padding: var(--s6); color: var(--text-secondary);
+  font-size: 14px; border-top: 1px solid var(--border); }

@@ -1,0 +1,13 @@
+.title { font-size: 28px; margin: 0 0 var(--s4); }
+.section { margin-bottom: var(--s4); }
+.h { margin: 0 0 var(--s4); font-size: 16px; color: var(--text-secondary); }
+.field { display: flex; flex-direction: column; gap: var(--s2); margin-bottom: var(--s4); }
+.label { font-size: 14px; color: var(--text-secondary); }
+.input { font: inherit; padding: 10px 14px; border: 1px solid var(--border);
+  border-radius: var(--radius-btn); background: var(--bg); max-width: 360px; }
+.input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+.input:disabled { opacity: .6; }
+.preview { display: flex; gap: 6px; flex-wrap: wrap; margin: -8px 0 var(--s4); }
+.actions { display: flex; gap: var(--s3); }
+.error { color: var(--ssq-red); background: rgba(230,57,70,.1); border-radius: 10px;
+  padding: 8px 12px; font-size: 14px; margin-bottom: var(--s4); }

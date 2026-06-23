@@ -1,0 +1,13 @@
+.back { display: inline-block; margin-bottom: var(--s4); }
+.head { display: flex; align-items: center; gap: var(--s3); margin-bottom: var(--s5); }
+.title { font-size: 28px; margin: 0; }
+.date { color: var(--text-secondary); margin-left: auto; }
+.numbers { display: flex; justify-content: center; padding: var(--s7) var(--s4); margin-bottom: var(--s4); }
+.balls { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; justify-content: center; }
+.plus { color: var(--text-secondary); font-size: 24px; }
+.prizes { margin-bottom: var(--s4); }
+.h { margin: 0 0 var(--s3); font-size: 16px; color: var(--text-secondary); }
+.muted { color: var(--text-secondary); margin: 0; }
+.actions { display: flex; gap: var(--s3); }
+.error { color: var(--ssq-red); padding: var(--s5); }
+.loading { color: var(--text-secondary); padding: var(--s5); }
