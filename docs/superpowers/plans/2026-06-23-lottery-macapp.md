@@ -1,5 +1,7 @@
 # 彩票验奖 Mac App Implementation Plan
 
+> **⚠️ 结构已于 2026-06-23 重构(本文为历史存档,路径未更新):** 工程已从单一 SwiftPM 拆为「本地包 `LotteryKit/` + App 源码 `LotteryChecker-Sources/` + Xcode App 工程」(方案 A)。下文中的 `macapp/` 路径与 `swift run LotteryChecker` 已失效,以仓库根 README 与 [`../../changes/2026-06-23-restructure-spm-to-local-package-and-app.md`](../../changes/2026-06-23-restructure-spm-to-local-package-and-app.md) 为准。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 原生 SwiftUI macOS app：上传彩票照片→大模型识别→可编辑确认→选数据源拉取开奖→验奖；以彩票为中心存多条验奖记录，开奖按(彩种,期数,源)带不可变版本，含 Dashboard/验奖结果总览/统计页。
