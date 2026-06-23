@@ -4,8 +4,10 @@
 
 | 子项目 | 目录 | 技术栈 | 说明 |
 |---|---|---|---|
-| **Mac App** | [`macapp/`](macapp/) | SwiftUI · SwiftData · Swift Charts | 上传彩票照片 → 大模型识别号码 → 可编辑确认 → 拉取官方/自建开奖数据 → 验奖、记账、统计 |
+| **Mac App** | [`LotteryKit/`](LotteryKit/) + [`LotteryChecker-Sources/`](LotteryChecker-Sources/) | SwiftUI · SwiftData · Swift Charts | 上传彩票照片 → 大模型识别号码 → 可编辑确认 → 拉取官方/自建开奖数据 → 验奖、记账、统计 |
 | **Web 服务** | [`webservice/`](webservice/) | React + Vite · FastAPI · SQLite/Postgres | 网页手动录入开奖号码（含可选奖金），对外提供 REST API 作为 Mac App 的一种数据源 |
+
+> Mac App 采用「**本地 SwiftPM 包 + Xcode App 工程**」结构:业务逻辑沉淀在 `LotteryKit/`（可独立 `swift test`），界面源码在 `LotteryChecker-Sources/`，由 Xcode 工程引用本地包并打包为可上架的 `.app`。搭建步骤见 [`XCODE-SETUP.md`](XCODE-SETUP.md)。
 
 核心流程：**拍照上传 → 视觉模型识别彩种与号码 → 用户确认 → 选数据源拉取开奖结果 → 评奖**。所有数据本地留存，可反复用不同数据源/版本重新验奖。
 
@@ -32,11 +34,14 @@
 
 ```
 .
-├── macapp/                 # Mac App（Swift Package，无第三方依赖）
-│   ├── Sources/
-│   │   ├── LotteryKit/     # 逻辑层：模型/校验/评奖/数据源/识别/持久化/统计（全部单测）
-│   │   └── LotteryChecker/ # SwiftUI 可执行 target（界面）
+├── LotteryKit/                 # Mac App 逻辑层：独立本地 SwiftPM 包（无第三方依赖）
+│   ├── Package.swift           #   库 + 测试 target
+│   ├── Sources/LotteryKit/     #   模型/校验/评奖/数据源/识别/持久化/统计（全部单测）
 │   └── Tests/LotteryKitTests/
+├── LotteryChecker-Sources/     # Mac App 界面层：SwiftUI 源码，由 Xcode 工程引用
+│   ├── LotteryCheckerApp.swift #   @main App 入口
+│   └── Views/                  #   各页面视图
+├── XCODE-SETUP.md              # 用 Xcode 搭建可上架 App 工程的步骤（方案 A）
 ├── webservice/             # Web 服务
 │   ├── backend/            # FastAPI + SQLAlchemy
 │   ├── frontend/           # React + Vite
@@ -52,26 +57,23 @@
 
 ## 运行 Mac App
 
-需要安装完整的 **Xcode**（不是仅 Command Line Tools —— SwiftData/Charts 运行所需）。
+需要安装完整的 **Xcode**（不是仅 Command Line Tools —— SwiftData/Charts 及打包所需）。首次需把 `LotteryKit/` 与 `LotteryChecker-Sources/` 组装成一个 Xcode App 工程，**完整步骤见 [`XCODE-SETUP.md`](XCODE-SETUP.md)**，要点：
 
-```bash
-cd macapp
-# 指向完整 Xcode 工具链（系统默认若是 CLT 会缺组件）
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run LotteryChecker
-```
-
-或用 Xcode 打开 SwiftPM 项目：`open macapp/Package.swift`，scheme 选 `LotteryChecker`，Cmd+R 运行。
-
-> 想免去每次的 `DEVELOPER_DIR`，可一次性切换默认工具链：
-> `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`
+1. 装完整版 Xcode，`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`。
+2. Xcode 新建 macOS App 工程 `LotteryChecker`（存到仓库根目录）。
+3. **Add Package Dependencies ▸ Add Local…** 选 `LotteryKit/`，把库勾给 App target。
+4. 把 `LotteryChecker-Sources/` 的源码加入工程 target。
+5. 配 App Sandbox（网络客户端 + 用户选取文件）、Bundle ID、图标 → ⌘R 运行 / Archive 上架。
 
 **首次使用**：先在「设置」页填视觉模型（Base URL / API Key / 模型名）；如需自建数据源，开启 Web 服务并填 Base URL / Token。然后到「验奖」页：选图 → 识别 → 核对 → 选源 → 验奖。
 
-**测试**：
+**测试** —— 逻辑层 `LotteryKit` 可脱离工程独立跑（需完整 Xcode 工具链以加载 SwiftData 宏插件）：
 
 ```bash
-cd macapp
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test   # 43 个单测
+cd LotteryKit
+swift test   # 12 个测试文件 / 43 个单测
+# 若系统默认仍是 Command Line Tools，前面加：
+# DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 ```
 
 ---
@@ -101,5 +103,5 @@ Docker 部署见 [`webservice/DEPLOY.md`](webservice/DEPLOY.md)，API 契约见 
 ## 已知限制
 
 - **官方开奖接口有反爬 / 地域限制**（体彩 anti-bot、福彩 WAF + 境外 IP 拦截）：解析逻辑有单测覆盖，但真实联网可能拉不到，必要时按实际返回结构微调对应 `parse`。无法联网时可用「手动录入」数据源或开奖版本浮层手填号码完成验奖。
-- 视觉识别与各数据源的真实网络调用需在你本机配置（API Key / 数据源地址）后联调；`swift run` 跑的是裸可执行文件，分发请用 Xcode 打 Archive。
+- 视觉识别与各数据源的真实网络调用需在你本机配置（API Key / 数据源地址）后联调；分发/上架请按 [`XCODE-SETUP.md`](XCODE-SETUP.md) 用 Xcode 打 Archive（需 Apple Developer Program 拿 `Apple Distribution` / `Developer ID` 证书）。
 - 复式 / 胆拖尚未实现（界面预留入口）。
