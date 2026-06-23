@@ -2,11 +2,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "LotteryChecker",
+    name: "LotteryKit",
     platforms: [.macOS(.v14)],
+    products: [
+        .library(name: "LotteryKit", targets: ["LotteryKit"]),
+    ],
     targets: [
         .target(name: "LotteryKit"),
-        .executableTarget(name: "LotteryChecker", dependencies: ["LotteryKit"]),
         .testTarget(name: "LotteryKitTests", dependencies: ["LotteryKit"]),
     ]
 )

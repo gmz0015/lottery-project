@@ -3,3 +3,15 @@ xcuserdata/
 build/
 DerivedData/
 *.xcuserstate
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Xcode
+*.xcscmblueprint
+*.xccheckout
+*.hmap
+*.dSYM
+*.dSYM.zip
