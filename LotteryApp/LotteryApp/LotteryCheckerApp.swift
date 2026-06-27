@@ -39,12 +39,30 @@ struct LotteryCheckerApp: App {
     var body: some Scene {
         WindowGroup {
             NavigationSplitView {
-                List(SidebarItem.allCases, selection: $selection) { item in
-                    Label(item.rawValue, systemImage: item.icon)
-                        .tag(item)
-                        .accessibilityIdentifier(item.accessibilityID)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 10) {
+                        Image("AppLogo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 34, height: 34)
+                            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                            .accessibilityLabel("App Logo")
+
+                        Text("彩票验奖")
+                            .font(.headline)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+
+                    Divider()
+
+                    List(SidebarItem.allCases, selection: $selection) { item in
+                        Label(item.rawValue, systemImage: item.icon)
+                            .tag(item)
+                            .accessibilityIdentifier(item.accessibilityID)
+                    }
+                    .listStyle(.sidebar)
                 }
-                .listStyle(.sidebar)
                 .navigationSplitViewColumnWidth(200)
             } detail: {
                 NavigationStack {
