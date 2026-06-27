@@ -6,7 +6,19 @@ struct TicketListView: View {
     @State private var tickets: [Ticket] = []
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
+            ContentBar(title: "保存的彩票", detail: "\(tickets.count) 张", systemImage: "ticket") {
+                Button {
+                    reload()
+                } label: {
+                    Label("刷新", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.glass)
+                .controlSize(.small)
+            }
+
+            Divider()
+
             if tickets.isEmpty {
                 PageScroll {
                     EmptyState(title: "暂无彩票", message: "在“验奖”页面录入或识别一张彩票后，会自动保存到这里。", systemImage: "ticket")
@@ -35,20 +47,12 @@ struct TicketListView: View {
                 .background(.regularMaterial)
             }
         }
+        .background(.regularMaterial)
         .navigationTitle("彩票列表")
         .navigationDestination(for: UUID.self) { id in
             if let t = tickets.first(where: { $0.id == id }) { TicketDetailView(ticket: t) }
         }
         .onAppear { reload() }
-        .toolbar {
-            ToolbarItem {
-                Button {
-                    reload()
-                } label: {
-                    Label("刷新", systemImage: "arrow.clockwise")
-                }
-            }
-        }
     }
 
     private func reload() {

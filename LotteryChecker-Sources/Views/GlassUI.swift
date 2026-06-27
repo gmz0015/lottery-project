@@ -17,6 +17,32 @@ struct PageScroll<Content: View>: View {
     }
 }
 
+struct ContentBar<Actions: View>: View {
+    let title: String
+    var detail: String?
+    var systemImage: String
+    @ViewBuilder var actions: () -> Actions
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Label(title, systemImage: systemImage)
+                .font(.headline)
+
+            if let detail {
+                Text(detail)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 16)
+
+            actions()
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+    }
+}
+
 struct GlassPanel<Content: View>: View {
     var spacing: CGFloat = 14
     @ViewBuilder var content: () -> Content
@@ -81,14 +107,20 @@ struct EmptyState: View {
 
     var body: some View {
         GlassPanel(spacing: 10) {
-            Image(systemName: systemImage)
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
-            Text(title)
-                .font(.headline)
-            Text(message)
-                .font(.callout)
-                .foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: 14) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title)
+                        .font(.headline)
+                    Text(message)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 }

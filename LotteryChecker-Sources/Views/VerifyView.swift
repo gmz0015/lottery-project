@@ -29,9 +29,6 @@ struct VerifyView: View {
 
     var body: some View {
         PageScroll {
-            Text("验奖")
-                .font(.largeTitle.weight(.semibold))
-
             GlassPanel {
                 HStack {
                     Label("彩票图片", systemImage: "photo")
@@ -108,7 +105,7 @@ struct VerifyView: View {
             }
 
             if busy {
-                ProgressView()
+                ProgressView("处理中")
             }
 
             StatusBanner(text: status)

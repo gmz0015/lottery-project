@@ -16,8 +16,14 @@ struct TicketDetailView: View {
     var body: some View {
         PageScroll {
             GlassPanel {
-                Label("\(category.displayName) 第 \(ticket.issue) 期", systemImage: category.symbolName)
-                    .font(.title2.weight(.semibold))
+                HStack {
+                    Label("票面号码", systemImage: category.symbolName)
+                        .font(.headline)
+                    Spacer()
+                    Text(category.displayName)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
 
                 if let name = ticket.imageFileName, let data = imageStore.load(name), let img = NSImage(data: data) {
                     Image(nsImage: img)
@@ -45,7 +51,7 @@ struct TicketDetailView: View {
                 }
 
                 if busy {
-                    ProgressView()
+                    ProgressView("验奖中")
                 }
                 StatusBanner(text: status)
             }

@@ -19,9 +19,6 @@ struct StatsView: View {
 
     var body: some View {
         PageScroll {
-            Text("统计")
-                .font(.largeTitle.weight(.semibold))
-
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 14)], spacing: 14) {
                 MetricTile(title: "累计投入", value: String(format: "¥%.0f", summary.totalCost), systemImage: "banknote", tint: .blue)
                 MetricTile(title: "累计中奖", value: "¥\(summary.totalWin)", systemImage: "trophy", tint: .green)

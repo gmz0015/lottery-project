@@ -11,16 +11,19 @@ struct ResultsOverviewView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Picker("彩种", selection: $filter) {
-                Text("全部").tag("all")
-                Text("双色球").tag(Category.ssq.rawValue)
-                Text("大乐透").tag(Category.dlt.rawValue)
+        VStack(spacing: 0) {
+            ContentBar(title: "最新结果", detail: "\(filtered.count) 条", systemImage: "checkmark.seal") {
+                Picker("彩种", selection: $filter) {
+                    Text("全部").tag("all")
+                    Text("双色球").tag(Category.ssq.rawValue)
+                    Text("大乐透").tag(Category.dlt.rawValue)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 320)
+                .accessibilityIdentifier("categoryFilterPicker")
             }
-            .pickerStyle(.segmented)
-            .frame(width: 320)
-            .accessibilityIdentifier("categoryFilterPicker")
-            .padding([.horizontal, .top], 20)
+
+            Divider()
 
             if stats.isEmpty {
                 PageScroll {
@@ -44,6 +47,7 @@ struct ResultsOverviewView: View {
                 .background(.regularMaterial)
             }
         }
+        .background(.regularMaterial)
         .navigationTitle("验奖结果总览")
         .onAppear { stats = StatsService.latestVerifications(model.store.allTickets()) }
     }

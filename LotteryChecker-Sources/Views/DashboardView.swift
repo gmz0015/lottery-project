@@ -8,9 +8,6 @@ struct DashboardView: View {
 
     var body: some View {
         PageScroll {
-            Text("概览")
-                .font(.largeTitle.weight(.semibold))
-
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 14)], spacing: 14) {
                 MetricTile(title: "累计投入", value: String(format: "¥%.0f", summary.totalCost), systemImage: "banknote", tint: .blue)
                 MetricTile(title: "累计中奖", value: "¥\(summary.totalWin)", systemImage: "trophy", tint: .green)
@@ -31,6 +28,7 @@ struct DashboardView: View {
                     HStack {
                         Label("[\(Category(rawValue: t.category)?.displayName ?? "")] 第 \(t.issue) 期",
                               systemImage: Category(rawValue: t.category)?.symbolName ?? "ticket")
+                            .lineLimit(1)
                         Spacer()
                         let amt = t.verifications.max(by: { $0.createdAt < $1.createdAt })?.totalAmount ?? 0
                         Text(amt > 0 ? "¥\(amt)" : "未中奖/待确认")

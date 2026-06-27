@@ -78,12 +78,6 @@ struct LotteryCheckerApp: App {
             }
             .environment(model)
             .frame(minWidth: 900, minHeight: 600)
-            .toolbar {
-                ToolbarItem(placement: .navigation) {
-                    Label(selection?.rawValue ?? "首页", systemImage: selection?.icon ?? "house")
-                        .labelStyle(.titleAndIcon)
-                }
-            }
         }
     }
 }

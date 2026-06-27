@@ -13,9 +13,6 @@ struct SettingsView: View {
 
     var body: some View {
         PageScroll {
-            Text("设置")
-                .font(.largeTitle.weight(.semibold))
-
             GlassPanel {
                 Label("视觉模型（OpenAI 兼容）", systemImage: "camera.metering.matrix")
                     .font(.headline)
