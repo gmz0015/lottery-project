@@ -1,12 +1,14 @@
 import SwiftUI
+import Observation
 import LotteryKit
 
 @MainActor
-final class AppModel: ObservableObject {
+@Observable
+final class AppModel {
     let store: Store
     let settings: AppSettings
-    @Published private(set) var fetchService: DrawFetchService
-    @Published private(set) var recognizer: VisionRecognizer
+    private(set) var fetchService: DrawFetchService
+    private(set) var recognizer: VisionRecognizer
 
     init() {
         // 失败则用内存库兜底，保证 app 可启动

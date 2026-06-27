@@ -1,43 +1,72 @@
-//
-//  LotteryAppUITests.swift
-//  LotteryAppUITests
-//
-//  Created by Noah Gao on 2026/6/27.
-//
-
 import XCTest
 
 final class LotteryAppUITests: XCTestCase {
 
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
-    }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testSidebarDestinationsAndPrimaryControlsExist() throws {
         let app = XCUIApplication()
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
+        try requireAccessibleWindow(in: app)
+
+        select("sidebar_verify", in: app)
+        XCTAssertTrue(app.buttons["chooseImageButton"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["recognizeTicketButton"].exists)
+        XCTAssertTrue(app.buttons["verifyTicketButton"].exists)
+        XCTAssertFalse(app.buttons["复式/胆拖（开发中）"].exists)
+        XCTAssertFalse(app.staticTexts["复式/胆拖（开发中）"].exists)
+
+        select("sidebar_tickets", in: app)
+        XCTAssertTrue(app.windows.firstMatch.exists)
+
+        select("sidebar_results", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["categoryFilterPicker"].waitForExistence(timeout: 2))
+
+        select("sidebar_stats", in: app)
+        XCTAssertTrue(app.windows.firstMatch.exists)
+
+        select("sidebar_settings", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["webServiceEnabledToggle"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["保存"].exists)
     }
 
     @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
+    func testVerifyButtonRequiresEditableTicketNumbers() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        try requireAccessibleWindow(in: app)
+        select("sidebar_verify", in: app)
+
+        let verifyButton = app.buttons["verifyTicketButton"]
+        XCTAssertTrue(verifyButton.waitForExistence(timeout: 2))
+        XCTAssertFalse(verifyButton.isEnabled)
+
+        app.textFields["issueField"].click()
+        app.textFields["issueField"].typeText("2026001")
+        app.textFields["frontNumbersField"].click()
+        app.textFields["frontNumbersField"].typeText("01 02 03 04 05 06")
+        app.textFields["backNumbersField"].click()
+        app.textFields["backNumbersField"].typeText("07")
+
+        XCTAssertTrue(verifyButton.isEnabled)
+    }
+
+    @MainActor
+    private func select(_ identifier: String, in app: XCUIApplication) {
+        let item = app.descendants(matching: .any)[identifier]
+        XCTAssertTrue(item.waitForExistence(timeout: 4), "Missing sidebar item: \(identifier)")
+        item.click()
+    }
+
+    @MainActor
+    private func requireAccessibleWindow(in app: XCUIApplication) throws {
+        if !app.windows.firstMatch.waitForExistence(timeout: 5) {
+            throw XCTSkip("The app launched, but this macOS runner did not expose an accessible window.")
         }
     }
 }

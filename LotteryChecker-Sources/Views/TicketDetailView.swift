@@ -3,45 +3,72 @@ import AppKit
 import LotteryKit
 
 struct TicketDetailView: View {
-    @EnvironmentObject var model: AppModel
+    @Environment(AppModel.self) private var model
     let ticket: Ticket
     @State private var refreshToken = 0
     @State private var sheetDraw: Draw?
     @State private var status = ""
+    @State private var busy = false
     private let imageStore = ImageStore()
 
     private var category: Category { Category(rawValue: ticket.category) ?? .ssq }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+        PageScroll {
+            GlassPanel {
+                Label("\(category.displayName) 第 \(ticket.issue) 期", systemImage: category.symbolName)
+                    .font(.title2.weight(.semibold))
+
                 if let name = ticket.imageFileName, let data = imageStore.load(name), let img = NSImage(data: data) {
-                    Image(nsImage: img).resizable().scaledToFit().frame(maxHeight: 200)
+                    Image(nsImage: img)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 220)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
+
                 ForEach(Array(ticket.bets.enumerated()), id: \.offset) { _, bet in
                     HStack { NumberBadges(numbers: bet.front, color: .red); NumberBadges(numbers: bet.back, color: .blue) }
                 }
-                Divider()
+            }
+
+            GlassPanel {
                 HStack {
-                    Text("再次验奖：").bold()
+                    Label("再次验奖", systemImage: "arrow.clockwise")
+                        .font(.headline)
+                    Spacer()
                     ForEach(model.availableSources(for: category), id: \.self) { src in
                         Button(src.displayName) { Task { await reverify(source: src, force: false) } }
+                            .buttonStyle(.glass)
+                            .disabled(busy)
                     }
                 }
-                if !status.isEmpty { Text(status).font(.caption).foregroundStyle(.secondary) }
-                Divider()
-                Text("验奖记录").font(.headline)
+
+                if busy {
+                    ProgressView()
+                }
+                StatusBanner(text: status)
+            }
+
+            GlassPanel {
+                Label("验奖记录", systemImage: "checklist")
+                    .font(.headline)
+
+                if ticket.verifications.isEmpty {
+                    Text("暂无验奖记录")
+                        .foregroundStyle(.secondary)
+                }
+
                 ForEach(ticket.verifications.sorted(by: { $0.createdAt > $1.createdAt }), id: \.id) { rec in
                     verificationRow(rec)
                 }
             }
-            .padding()
             .id(refreshToken)
         }
         .navigationTitle("第 \(ticket.issue) 期")
         .sheet(item: $sheetDraw) { draw in
             DrawVersionSheet(draw: draw, ticket: ticket) { refreshToken += 1 }
-                .environmentObject(model)
+                .environment(model)
         }
     }
 
@@ -59,14 +86,23 @@ struct TicketDetailView: View {
                 Text(snap.result.tierName.map { "\($0)" } ?? "未中奖").font(.caption2)
             }
             if let draw = rec.drawVersion?.draw {
-                Button("查看/管理该期开奖版本") { sheetDraw = draw }.font(.caption)
+                Button {
+                    sheetDraw = draw
+                } label: {
+                    Label("开奖版本", systemImage: "square.stack.3d.up")
+                }
+                .buttonStyle(.glass)
+                .controlSize(.small)
             }
         }
-        .padding(8).background(.background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(12)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func reverify(source: DataSourceKind, force: Bool) async {
+        busy = true
         status = "验奖中…"
+        defer { busy = false }
         do {
             let version = try await model.fetchService.fetch(category: category, issue: ticket.issue,
                                                              source: source, forceRefresh: force)

@@ -19,19 +19,32 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .settings: return "gearshape"
         }
     }
+    var accessibilityID: String {
+        switch self {
+        case .dashboard: return "sidebar_dashboard"
+        case .verify: return "sidebar_verify"
+        case .tickets: return "sidebar_tickets"
+        case .results: return "sidebar_results"
+        case .stats: return "sidebar_stats"
+        case .settings: return "sidebar_settings"
+        }
+    }
 }
 
 @main
 struct LotteryCheckerApp: App {
-    @StateObject private var model = AppModel()
+    @State private var model = AppModel()
     @State private var selection: SidebarItem? = .dashboard
 
     var body: some Scene {
         WindowGroup {
             NavigationSplitView {
                 List(SidebarItem.allCases, selection: $selection) { item in
-                    Label(item.rawValue, systemImage: item.icon).tag(item)
+                    Label(item.rawValue, systemImage: item.icon)
+                        .tag(item)
+                        .accessibilityIdentifier(item.accessibilityID)
                 }
+                .listStyle(.sidebar)
                 .navigationSplitViewColumnWidth(200)
             } detail: {
                 NavigationStack {
@@ -45,8 +58,14 @@ struct LotteryCheckerApp: App {
                     }
                 }
             }
-            .environmentObject(model)
+            .environment(model)
             .frame(minWidth: 900, minHeight: 600)
+            .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    Label(selection?.rawValue ?? "首页", systemImage: selection?.icon ?? "house")
+                        .labelStyle(.titleAndIcon)
+                }
+            }
         }
     }
 }
