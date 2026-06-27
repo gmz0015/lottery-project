@@ -1,9 +1,10 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 import LotteryKit
 
 struct VerifyView: View {
-    @EnvironmentObject var model: AppModel
+    @Environment(AppModel.self) private var model
     @State private var imageData: Data?
     @State private var category: Category = .ssq
     @State private var issue = ""
@@ -15,44 +16,112 @@ struct VerifyView: View {
 
     private let imageStore = ImageStore()
 
+    private var canRecognize: Bool {
+        imageData != nil && !busy
+    }
+
+    private var canVerify: Bool {
+        !busy
+        && !issue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        && !frontText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        && !backText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     var body: some View {
-        Form {
-            Section("彩票图片") {
-                if let imageData, let nsImage = NSImage(data: imageData) {
-                    Image(nsImage: nsImage).resizable().scaledToFit().frame(maxHeight: 180)
+        PageScroll {
+            Text("验奖")
+                .font(.largeTitle.weight(.semibold))
+
+            GlassPanel {
+                HStack {
+                    Label("彩票图片", systemImage: "photo")
+                        .font(.headline)
+                    Spacer()
+                    Button {
+                        pickImage()
+                    } label: {
+                        Label("选择图片", systemImage: "photo.badge.plus")
+                    }
+                    .buttonStyle(.glass)
+                    .accessibilityIdentifier("chooseImageButton")
+
+                    Button {
+                        Task { await recognize() }
+                    } label: {
+                        Label("识别", systemImage: "viewfinder")
+                    }
+                    .buttonStyle(.glassProminent)
+                    .disabled(!canRecognize)
+                    .accessibilityIdentifier("recognizeTicketButton")
                 }
-                Button("选择图片…") { pickImage() }
-                Button("识别") { Task { await recognize() } }
-                    .disabled(imageData == nil || busy)
+
+                if let imageData, let nsImage = NSImage(data: imageData) {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 220)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                } else {
+                    Text("未选择图片，也可以直接在下方手动输入号码。")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
             }
-            Section("确认（可编辑）") {
+
+            GlassPanel {
+                Label("确认号码", systemImage: "checklist")
+                    .font(.headline)
+
                 Picker("彩种", selection: $category) {
                     ForEach(Category.allCases, id: \.self) { Text($0.displayName).tag($0) }
                 }
+                .pickerStyle(.segmented)
+                .frame(width: 220)
+
                 TextField("期数", text: $issue)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("issueField")
                 TextField("前区/红球（空格分隔）", text: $frontText)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("frontNumbersField")
                 TextField("后区/蓝球（空格分隔）", text: $backText)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("backNumbersField")
                 Picker("数据源", selection: $selectedSource) {
                     ForEach(model.availableSources(for: category), id: \.self) { Text($0.displayName).tag($0) }
                 }
-                Button("复式/胆拖（开发中）") {}.disabled(true)
+                .pickerStyle(.menu)
+
+                HStack {
+                    Label("单式票", systemImage: "1.circle")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button {
+                        Task { await verify() }
+                    } label: {
+                        Label("验奖", systemImage: "checkmark.seal")
+                    }
+                    .buttonStyle(.glassProminent)
+                    .disabled(!canVerify)
+                    .accessibilityIdentifier("verifyTicketButton")
+                }
             }
-            if !status.isEmpty {
-                Text(status).foregroundStyle(status.hasPrefix("错误") ? .red : .secondary)
+
+            if busy {
+                ProgressView()
             }
-            Button("验奖") { Task { await verify() } }
-                .disabled(busy)
+
+            StatusBanner(text: status)
         }
-        .formStyle(.grouped)
-        .padding()
         .navigationTitle("验奖")
+        .onAppear { ensureSelectedSource() }
         .onChange(of: category) { _, newValue in
             selectedSource = model.availableSources(for: newValue).first ?? .manual
         }
     }
 
     private func parseNums(_ s: String) -> [Int] {
-        s.split(whereSeparator: { $0 == " " || $0 == "," }).compactMap { Int($0) }
+        s.split(whereSeparator: { $0.isWhitespace || $0 == "," || $0 == "，" }).compactMap { Int($0) }
     }
 
     private func pickImage() {
@@ -89,16 +158,17 @@ struct VerifyView: View {
         if let err = NumberValidation.validate(category: category, front: front, back: back) {
             status = "错误：\(err)"; return
         }
-        guard !issue.isEmpty else { status = "错误：请填写期数"; return }
+        let trimmedIssue = issue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedIssue.isEmpty else { status = "错误：请填写期数"; return }
         busy = true; status = "验奖中…"
         defer { busy = false }
         do {
             var fileName: String?
             if let imageData { fileName = try? imageStore.save(imageData) }
             let bet = Bet(front: front, back: back)
-            let ticket = model.store.saveTicket(category: category, issue: issue, bets: [bet],
+            let ticket = model.store.saveTicket(category: category, issue: trimmedIssue, bets: [bet],
                                                 imageFileName: fileName, cost: 2, purchaseDate: Date())
-            let version = try await model.fetchService.fetch(category: category, issue: issue,
+            let version = try await model.fetchService.fetch(category: category, issue: trimmedIssue,
                                                              source: selectedSource, forceRefresh: false)
             let r = PrizeEvaluator.evaluate(category: category, bet: bet,
                                             drawFront: version.frontNumbers, drawBack: version.backNumbers,
@@ -112,6 +182,13 @@ struct VerifyView: View {
             status = "错误：该期未开奖或不存在"
         } catch {
             status = "错误：\(error.localizedDescription)"
+        }
+    }
+
+    private func ensureSelectedSource() {
+        let available = model.availableSources(for: category)
+        if !available.contains(selectedSource) {
+            selectedSource = available.first ?? .manual
         }
     }
 }

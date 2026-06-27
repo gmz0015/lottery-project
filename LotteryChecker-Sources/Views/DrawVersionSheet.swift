@@ -3,7 +3,7 @@ import AppKit
 import LotteryKit
 
 struct DrawVersionSheet: View {
-    @EnvironmentObject var model: AppModel
+    @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let draw: Draw
     let ticket: Ticket
@@ -15,42 +15,84 @@ struct DrawVersionSheet: View {
 
     private var category: Category { Category(rawValue: draw.category) ?? .ssq }
 
+    private var canSave: Bool {
+        !frontText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        && !backText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("开奖版本 · \(category.displayName) 第 \(draw.issue) 期 · \(DataSourceKind(rawValue: draw.source)?.displayName ?? draw.source)")
-                .font(.headline)
-            List(draw.versions.sorted(by: { $0.versionNumber > $1.versionNumber }), id: \.id) { v in
-                VStack(alignment: .leading) {
-                    HStack {
-                        Text("v\(v.versionNumber)").bold()
-                        Text(v.origin == "fetched" ? "抓取" : "手动").font(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                        Button("用此版本重验") { Task { await reverify(with: v) } }.font(.caption)
+        GlassEffectContainer(spacing: 14) {
+            VStack(alignment: .leading, spacing: 14) {
+                Label("\(category.displayName) 第 \(draw.issue) 期", systemImage: category.symbolName)
+                    .font(.headline)
+                Text(DataSourceKind(rawValue: draw.source)?.displayName ?? draw.source)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                List(draw.versions.sorted(by: { $0.versionNumber > $1.versionNumber }), id: \.id) { v in
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("v\(v.versionNumber)").bold()
+                            Text(v.origin == "fetched" ? "抓取" : "手动")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button {
+                                Task { await reverify(with: v) }
+                            } label: {
+                                Label("重验", systemImage: "checkmark.seal")
+                            }
+                            .buttonStyle(.glass)
+                            .controlSize(.small)
+                        }
+                        HStack {
+                            NumberBadges(numbers: v.frontNumbers, color: .red)
+                            NumberBadges(numbers: v.backNumbers, color: .blue)
+                        }
+                        if let urlStr = v.sourceURL, let url = URL(string: urlStr) {
+                            Link(destination: url) {
+                                Label("来源页", systemImage: "link")
+                            }
+                            .font(.caption)
+                        }
                     }
-                    HStack { NumberBadges(numbers: v.frontNumbers, color: .red); NumberBadges(numbers: v.backNumbers, color: .blue) }
-                    if let urlStr = v.sourceURL, let url = URL(string: urlStr) {
-                        Link("来源页", destination: url).font(.caption)
+                }
+                .scrollContentBackground(.hidden)
+                .frame(minHeight: 220)
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                GlassPanel {
+                    Text("手动新增/修改版本")
+                        .font(.subheadline.weight(.semibold))
+                    TextField("前区/红球（空格分隔）", text: $frontText)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("后区/蓝球（空格分隔）", text: $backText)
+                        .textFieldStyle(.roundedBorder)
+                    StatusBanner(text: status)
+                    HStack {
+                        Button {
+                            addManualVersion()
+                        } label: {
+                            Label("保存为新版本", systemImage: "plus")
+                        }
+                        .buttonStyle(.glassProminent)
+                        .disabled(!canSave)
+
+                        Spacer()
+
+                        Button("关闭") { dismiss() }
+                            .buttonStyle(.glass)
                     }
                 }
             }
-            .frame(minHeight: 180)
-            Divider()
-            Text("手动新增/修改版本").font(.subheadline)
-            TextField("前区/红球（空格分隔）", text: $frontText)
-            TextField("后区/蓝球（空格分隔）", text: $backText)
-            if !status.isEmpty { Text(status).font(.caption).foregroundStyle(.red) }
-            HStack {
-                Button("保存为新版本") { addManualVersion() }
-                Spacer()
-                Button("关闭") { dismiss() }
-            }
+            .padding()
         }
-        .padding()
-        .frame(width: 460)
+        .frame(width: 520, height: 560)
+        .background(.regularMaterial)
     }
 
     private func parseNums(_ s: String) -> [Int] {
-        s.split(whereSeparator: { $0 == " " || $0 == "," }).compactMap { Int($0) }
+        s.split(whereSeparator: { $0.isWhitespace || $0 == "," || $0 == "，" }).compactMap { Int($0) }
     }
 
     private func addManualVersion() {
@@ -60,7 +102,7 @@ struct DrawVersionSheet: View {
         }
         _ = model.store.addVersion(to: draw, front: front, back: back, prizes: nil,
                                    drawDate: nil, origin: "manual", sourceURL: nil)
-        frontText = ""; backText = ""; status = ""
+        frontText = ""; backText = ""; status = "已保存新版本"
         onChange()
     }
 
