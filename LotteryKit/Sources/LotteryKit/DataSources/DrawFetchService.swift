@@ -34,4 +34,15 @@ public final class DrawFetchService {
                                 prizes: result.prizes, drawDate: result.drawDate,
                                 origin: "fetched", sourceURL: result.sourceURL)
     }
+
+    public func recordManual(category: Category, issue: String, front: [Int], back: [Int],
+                             prizes: [String: Int]? = nil, drawDate: Date? = nil) -> DrawVersion {
+        let draw = store.createOrGetDraw(category: category, issue: issue, source: .manual)
+        if let latest = store.latestVersion(draw),
+           latest.frontNumbers == front, latest.backNumbers == back, latest.prizes == prizes {
+            return latest
+        }
+        return store.addVersion(to: draw, front: front, back: back, prizes: prizes,
+                                drawDate: drawDate, origin: "manual", sourceURL: nil)
+    }
 }
