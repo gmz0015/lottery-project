@@ -14,6 +14,20 @@ public struct RecognizedTicket: Equatable, Sendable {
 public enum RecognizerError: Error, Equatable {
     case notConfigured
     case badOutput(String)
+    case requestFailed(String)
+}
+
+extension RecognizerError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .notConfigured:
+            return "请先在设置中配置模型 Base URL、API Key 和模型名"
+        case .badOutput(let content):
+            return "模型返回内容无法解析：\(content)"
+        case .requestFailed(let message):
+            return message
+        }
+    }
 }
 
 public protocol VisionRecognizer: Sendable {
@@ -61,10 +75,47 @@ public struct OpenAIVisionRecognizer: VisionRecognizer {
                                 bets: raw.bets.map { Bet(front: $0.front, back: $0.back) })
     }
 
+    static func endpointURL(from baseURL: String) throws -> URL {
+        let trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw RecognizerError.notConfigured }
+
+        let withoutTrailingSlashes = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let normalized: String
+        if withoutTrailingSlashes.contains("://") {
+            normalized = withoutTrailingSlashes
+        } else {
+            let lowercased = withoutTrailingSlashes.lowercased()
+            let defaultScheme = lowercased.hasPrefix("localhost")
+                || lowercased.hasPrefix("127.")
+                || lowercased.hasPrefix("[::1]") ? "http" : "https"
+            normalized = "\(defaultScheme)://\(withoutTrailingSlashes)"
+        }
+
+        guard var components = URLComponents(string: normalized),
+              let scheme = components.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              let host = components.host,
+              !host.isEmpty else {
+            throw RecognizerError.notConfigured
+        }
+
+        var path = components.percentEncodedPath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if path.isEmpty {
+            path = "chat/completions"
+        } else if !path.hasSuffix("chat/completions") {
+            path += "/chat/completions"
+        }
+        components.percentEncodedPath = "/" + path
+        components.query = nil
+        components.fragment = nil
+
+        guard let url = components.url else { throw RecognizerError.notConfigured }
+        return url
+    }
+
     public func recognize(imageData: Data) async throws -> RecognizedTicket {
         guard !baseURL.isEmpty, !apiKey.isEmpty, !model.isEmpty else { throw RecognizerError.notConfigured }
-        let base = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        guard let url = URL(string: base + "/chat/completions") else { throw RecognizerError.notConfigured }
+        let url = try Self.endpointURL(from: baseURL)
         let b64 = imageData.base64EncodedString()
         let body: [String: Any] = [
             "model": model,
@@ -82,7 +133,13 @@ public struct OpenAIVisionRecognizer: VisionRecognizer {
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, _) = try await URLSession.shared.data(for: req)
+        let data: Data
+        do {
+            let (responseData, _) = try await URLSession.shared.data(for: req)
+            data = responseData
+        } catch {
+            throw RecognizerError.requestFailed("模型请求失败：请检查 Base URL 是否正确、网络是否可用、域名是否能解析（\(error.localizedDescription)）")
+        }
         struct ChatResp: Decodable {
             struct Choice: Decodable { struct Msg: Decodable { let content: String }; let message: Msg }
             let choices: [Choice]
