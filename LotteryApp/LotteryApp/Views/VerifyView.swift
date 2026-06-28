@@ -45,6 +45,7 @@ struct VerifyView: View {
                         Label("选择图片", systemImage: "photo.badge.plus")
                     }
                     .buttonStyle(.glass)
+                    .interactiveControl()
                     .accessibilityIdentifier("chooseImageButton")
 
                     Button {
@@ -53,6 +54,7 @@ struct VerifyView: View {
                         Label("识别", systemImage: "viewfinder")
                     }
                     .buttonStyle(.glassProminent)
+                    .interactiveControl()
                     .disabled(!canRecognize)
                     .accessibilityIdentifier("recognizeTicketButton")
                 }
@@ -63,10 +65,12 @@ struct VerifyView: View {
                         .scaledToFit()
                         .frame(maxHeight: 220)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .softRevealTransition()
                 } else {
                     Text("未选择图片，也可以直接在下方手动输入号码。")
                         .font(.callout)
                         .foregroundStyle(.secondary)
+                        .softRevealTransition()
                 }
             }
 
@@ -96,17 +100,20 @@ struct VerifyView: View {
                 }
                 .pickerStyle(.menu)
 
-                if selectedSource == .manual {
-                    Divider()
-                    Label("手动录入开奖号", systemImage: "number.square")
-                        .font(.subheadline.weight(.semibold))
-                    TextField("开奖号前区/红球（空格分隔）", text: $manualDrawFrontText)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityIdentifier("manualDrawFrontField")
-                    TextField("开奖号后区/蓝球（空格分隔）", text: $manualDrawBackText)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityIdentifier("manualDrawBackField")
+                Group {
+                    if selectedSource == .manual {
+                        Divider()
+                        Label("手动录入开奖号", systemImage: "number.square")
+                            .font(.subheadline.weight(.semibold))
+                        TextField("开奖号前区/红球（空格分隔）", text: $manualDrawFrontText)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("manualDrawFrontField")
+                        TextField("开奖号后区/蓝球（空格分隔）", text: $manualDrawBackText)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("manualDrawBackField")
+                    }
                 }
+                .softRevealTransition()
 
                 HStack {
                     Label("单式/复式", systemImage: "square.stack.3d.up")
@@ -118,6 +125,7 @@ struct VerifyView: View {
                         Label("验奖", systemImage: "checkmark.seal")
                     }
                     .buttonStyle(.glassProminent)
+                    .interactiveControl()
                     .disabled(!canVerify)
                     .accessibilityIdentifier("verifyTicketButton")
                 }
@@ -125,11 +133,16 @@ struct VerifyView: View {
 
             if busy {
                 ProgressView("处理中")
+                    .softRevealTransition()
             }
 
             StatusBanner(text: status)
         }
         .navigationTitle("验奖")
+        .animation(AppMotion.reveal, value: imageData != nil)
+        .animation(AppMotion.reveal, value: selectedSource)
+        .animation(AppMotion.reveal, value: busy)
+        .animation(AppMotion.reveal, value: status)
         .onAppear { ensureSelectedSource() }
         .onChange(of: category) { _, newValue in
             selectedSource = model.availableSources(for: newValue).first ?? .manual
@@ -145,8 +158,10 @@ struct VerifyView: View {
         panel.allowedContentTypes = [.image]
         panel.allowsMultipleSelection = false
         if panel.runModal() == .OK, let url = panel.url {
-            imageData = try? Data(contentsOf: url)
-            status = ""
+            withAnimation(AppMotion.reveal) {
+                imageData = try? Data(contentsOf: url)
+                status = ""
+            }
         }
     }
 

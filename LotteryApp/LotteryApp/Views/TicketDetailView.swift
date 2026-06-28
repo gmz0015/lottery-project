@@ -31,6 +31,7 @@ struct TicketDetailView: View {
                         .scaledToFit()
                         .frame(maxHeight: 220)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .softRevealTransition()
                 }
 
                 ForEach(Array(ticket.bets.enumerated()), id: \.offset) { _, bet in
@@ -52,12 +53,14 @@ struct TicketDetailView: View {
                             }
                         }
                         .buttonStyle(.glass)
+                        .interactiveControl()
                         .disabled(busy)
                     }
                 }
 
                 if busy {
                     ProgressView("验奖中")
+                        .softRevealTransition()
                 }
                 StatusBanner(text: status)
             }
@@ -78,6 +81,9 @@ struct TicketDetailView: View {
             .id(refreshToken)
         }
         .navigationTitle("第 \(ticket.issue) 期")
+        .animation(AppMotion.reveal, value: busy)
+        .animation(AppMotion.reveal, value: status)
+        .animation(AppMotion.reveal, value: refreshToken)
         .sheet(item: $sheetDraw) { draw in
             DrawVersionSheet(draw: draw, ticket: ticket) { refreshToken += 1 }
                 .environment(model)
@@ -104,11 +110,13 @@ struct TicketDetailView: View {
                     Label("开奖版本", systemImage: "square.stack.3d.up")
                 }
                 .buttonStyle(.glass)
+                .interactiveControl()
                 .controlSize(.small)
             }
         }
         .padding(12)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .hoverLift(scale: 1.006, yOffset: -1, shadowOpacity: 0.08)
     }
 
     private func reverify(source: DataSourceKind, force: Bool) async {
@@ -125,8 +133,10 @@ struct TicketDetailView: View {
                                                            prizes: version.prizes)
             _ = model.store.addVerification(ticket: ticket, drawVersion: version,
                                             results: evaluation.results, totalAmount: evaluation.totalAmount)
-            refreshToken += 1
-            status = "已追加验奖记录（\(source.displayName)）"
+            withAnimation(AppMotion.reveal) {
+                refreshToken += 1
+                status = "已追加验奖记录（\(source.displayName)）"
+            }
         } catch DrawSourceError.notFound {
             status = "该期未开奖或不存在"
         } catch DrawSourceError.badResponse(let message) {

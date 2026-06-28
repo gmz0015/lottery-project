@@ -53,11 +53,16 @@ struct StatsView: View {
             }
         }
         .navigationTitle("统计")
-        .onAppear { tickets = model.store.allTickets() }
+        .animation(AppMotion.reveal, value: tickets.count)
+        .onAppear {
+            withAnimation(AppMotion.reveal) {
+                tickets = model.store.allTickets()
+            }
+        }
     }
 
     private func chartPanel<C: View>(_ title: String, systemImage: String, @ViewBuilder _ content: @escaping () -> C) -> some View {
-        GlassPanel {
+        GlassPanel(interactive: true) {
             Label(title, systemImage: systemImage)
                 .font(.headline)
             content()

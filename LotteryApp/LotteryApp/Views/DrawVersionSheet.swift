@@ -43,6 +43,7 @@ struct DrawVersionSheet: View {
                                 Label("重验", systemImage: "checkmark.seal")
                             }
                             .buttonStyle(.glass)
+                            .interactiveControl()
                             .controlSize(.small)
                         }
                         HStack {
@@ -54,8 +55,11 @@ struct DrawVersionSheet: View {
                                 Label("来源页", systemImage: "link")
                             }
                             .font(.caption)
+                            .interactiveControl()
                         }
                     }
+                    .padding(.vertical, 4)
+                    .softHoverRow()
                 }
                 .scrollContentBackground(.hidden)
                 .frame(minHeight: 220)
@@ -76,12 +80,14 @@ struct DrawVersionSheet: View {
                             Label("保存为新版本", systemImage: "plus")
                         }
                         .buttonStyle(.glassProminent)
+                        .interactiveControl()
                         .disabled(!canSave)
 
                         Spacer()
 
                         Button("关闭") { dismiss() }
                             .buttonStyle(.glass)
+                            .interactiveControl()
                     }
                 }
             }
@@ -89,6 +95,7 @@ struct DrawVersionSheet: View {
         }
         .frame(width: 520, height: 560)
         .background(.regularMaterial)
+        .animation(AppMotion.reveal, value: status)
     }
 
     private func parseNums(_ s: String) -> [Int] {
@@ -98,7 +105,10 @@ struct DrawVersionSheet: View {
     private func addManualVersion() {
         let front = parseNums(frontText), back = parseNums(backText)
         if let err = NumberValidation.validate(category: category, front: front, back: back) {
-            status = err; return
+            withAnimation(AppMotion.reveal) {
+                status = err
+            }
+            return
         }
         let version: DrawVersion
         if DataSourceKind(rawValue: draw.source) == .manual {
@@ -109,7 +119,11 @@ struct DrawVersionSheet: View {
                                              drawDate: nil, origin: "manual", sourceURL: nil)
         }
         addVerification(with: version)
-        frontText = ""; backText = ""; status = "已保存新版本并追加验奖记录"
+        withAnimation(AppMotion.reveal) {
+            frontText = ""
+            backText = ""
+            status = "已保存新版本并追加验奖记录"
+        }
         onChange()
     }
 

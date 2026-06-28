@@ -60,7 +60,7 @@ struct LotteryCheckerApp: App {
                     Divider()
 
                     List(SidebarItem.allCases, selection: $selection) { item in
-                        Label(item.rawValue, systemImage: item.icon)
+                        SidebarItemRow(item: item)
                             .tag(item)
                             .accessibilityIdentifier(item.accessibilityID)
                     }
@@ -69,19 +69,43 @@ struct LotteryCheckerApp: App {
                 .navigationSplitViewColumnWidth(200)
             } detail: {
                 NavigationStack {
-                    switch selection ?? .dashboard {
-                    case .dashboard: DashboardView()
-                    case .verify: VerifyView()
-                    case .tickets: TicketListView()
-                    case .draws: DrawsView()
-                    case .results: ResultsOverviewView()
-                    case .stats: StatsView()
-                    case .settings: SettingsView()
+                    ZStack {
+                        switch selection ?? .dashboard {
+                        case .dashboard: DashboardView()
+                        case .verify: VerifyView()
+                        case .tickets: TicketListView()
+                        case .draws: DrawsView()
+                        case .results: ResultsOverviewView()
+                        case .stats: StatsView()
+                        case .settings: SettingsView()
+                        }
                     }
+                    .id(selection ?? .dashboard)
+                    .transition(.opacity.combined(with: .move(edge: .trailing)).combined(with: .scale(scale: 0.992)))
                 }
             }
+            .animation(AppMotion.page, value: selection)
             .environment(model)
             .frame(minWidth: 900, minHeight: 600)
+        }
+    }
+}
+
+private struct SidebarItemRow: View {
+    let item: SidebarItem
+    @State private var isHovering = false
+
+    var body: some View {
+        Label {
+            Text(item.rawValue)
+                .lineLimit(1)
+        } icon: {
+            Image(systemName: item.icon)
+                .symbolEffect(.bounce, value: isHovering)
+        }
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            isHovering = hovering
         }
     }
 }

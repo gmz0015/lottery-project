@@ -45,11 +45,14 @@ struct SettingsView: View {
                     Label("保存", systemImage: "checkmark")
                 }
                 .buttonStyle(.glassProminent)
+                .interactiveControl()
 
                 StatusBanner(text: saved ? "已保存" : "")
             }
         }
         .navigationTitle("设置")
+        .animation(AppMotion.reveal, value: saved)
+        .animation(AppMotion.reveal, value: wsEnabled)
         .onAppear { load() }
         .onChange(of: modelBaseURL) { _, _ in saved = false }
         .onChange(of: modelAPIKey) { _, _ in saved = false }
@@ -80,6 +83,8 @@ struct SettingsView: View {
         s.modelBaseURL = modelBaseURL; s.modelAPIKey = modelAPIKey; s.modelName = modelName
         s.webServiceBaseURL = wsBaseURL; s.webServiceToken = wsToken; s.webServiceEnabled = wsEnabled
         model.rebuildServices()
-        saved = true
+        withAnimation(AppMotion.reveal) {
+            saved = true
+        }
     }
 }

@@ -80,18 +80,25 @@ struct DrawEntrySheet: View {
                         }
                     }
                     .buttonStyle(.glassProminent)
+                    .interactiveControl()
                     .disabled(!canSubmit || (mode == .fetch && fetchSourceChoice == .webService && !webServiceReady))
 
                     Spacer()
 
                     Button("关闭") { dismiss() }
                         .buttonStyle(.glass)
+                        .interactiveControl()
                 }
             }
             .padding()
         }
         .frame(width: 520)
         .background(.regularMaterial)
+        .animation(AppMotion.reveal, value: mode)
+        .animation(AppMotion.reveal, value: includeDate)
+        .animation(AppMotion.reveal, value: fetchSourceChoice)
+        .animation(AppMotion.reveal, value: status)
+        .animation(AppMotion.reveal, value: isWorking)
         .onChange(of: category) { _, _ in status = "" }
         .onChange(of: mode) { _, _ in status = "" }
         .onAppear {
@@ -111,11 +118,14 @@ struct DrawEntrySheet: View {
 
             labeledField("期号", placeholder: "例如 2026070", text: $issue)
 
-            if mode == .manual {
-                manualFields
-            } else {
-                fetchFields
+            Group {
+                if mode == .manual {
+                    manualFields
+                } else {
+                    fetchFields
+                }
             }
+            .softRevealTransition()
         }
     }
 
@@ -131,6 +141,7 @@ struct DrawEntrySheet: View {
         Toggle("填写开奖日期", isOn: $includeDate)
         if includeDate {
             DatePicker("开奖日期", selection: $drawDate, displayedComponents: .date)
+                .softRevealTransition()
         }
 
         HStack(spacing: 12) {
@@ -163,6 +174,7 @@ struct DrawEntrySheet: View {
             Text("请先在设置中启用 Web 服务数据源并填写 Base URL。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .softRevealTransition()
         }
     }
 
@@ -177,9 +189,15 @@ struct DrawEntrySheet: View {
     }
 
     private func submit() async {
-        status = ""
-        isWorking = true
-        defer { isWorking = false }
+        withAnimation(AppMotion.reveal) {
+            status = ""
+            isWorking = true
+        }
+        defer {
+            withAnimation(AppMotion.reveal) {
+                isWorking = false
+            }
+        }
 
         do {
             if mode == .manual {

@@ -44,6 +44,7 @@ struct DrawsView: View {
                     Label("手动录入", systemImage: "square.and.pencil")
                 }
                 .buttonStyle(.glass)
+                .interactiveControl()
 
                 Button {
                     entrySheetMode = .fetch
@@ -51,6 +52,7 @@ struct DrawsView: View {
                     Label("拉取指定期", systemImage: "arrow.down.doc")
                 }
                 .buttonStyle(.glassProminent)
+                .interactiveControl()
 
                 Button {
                     reloadDraws()
@@ -58,6 +60,7 @@ struct DrawsView: View {
                     Label("刷新列表", systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.glass)
+                .interactiveControl()
                 .accessibilityIdentifier("reloadDrawsButton")
             }
 
@@ -133,6 +136,7 @@ struct DrawsView: View {
                                     Link(destination: url) {
                                         Image(systemName: "link")
                                     }
+                                    .interactiveControl()
                                     .help("打开来源页")
                                 }
 
@@ -142,11 +146,14 @@ struct DrawsView: View {
                                     if refreshingDrawID == draw.id {
                                         ProgressView()
                                             .controlSize(.small)
+                                            .softRevealTransition()
                                     } else {
                                         Image(systemName: "arrow.clockwise")
+                                            .softRevealTransition()
                                     }
                                 }
                                 .buttonStyle(.borderless)
+                                .interactiveControl()
                                 .help("从该数据源强制刷新本期")
                                 .disabled(!canRefresh(draw) || refreshingDrawID != nil)
                             }
@@ -159,6 +166,9 @@ struct DrawsView: View {
         }
         .background(.regularMaterial)
         .navigationTitle("开奖信息")
+        .animation(AppMotion.reveal, value: draws.count)
+        .animation(AppMotion.reveal, value: status)
+        .animation(AppMotion.reveal, value: refreshingDrawID)
         .onAppear(perform: reloadDraws)
         .sheet(item: $entrySheetMode) { mode in
             DrawEntrySheet(initialMode: mode) {
@@ -168,7 +178,9 @@ struct DrawsView: View {
     }
 
     private func reloadDraws() {
-        draws = model.store.allDraws()
+        withAnimation(AppMotion.reveal) {
+            draws = model.store.allDraws()
+        }
     }
 
     private func refresh(_ draw: Draw) async {
@@ -178,18 +190,30 @@ struct DrawsView: View {
             return
         }
         let issue = draw.issue
-        refreshingDrawID = draw.id
-        status = "正在刷新 \(category.displayName) 第 \(issue) 期"
-        defer { refreshingDrawID = nil }
+        withAnimation(AppMotion.reveal) {
+            refreshingDrawID = draw.id
+            status = "正在刷新 \(category.displayName) 第 \(issue) 期"
+        }
+        defer {
+            withAnimation(AppMotion.reveal) {
+                refreshingDrawID = nil
+            }
+        }
 
         do {
             _ = try await model.fetchService.fetch(category: category, issue: issue, source: source, forceRefresh: true)
             reloadDraws()
-            status = "已刷新 \(category.displayName) 第 \(issue) 期"
+            withAnimation(AppMotion.reveal) {
+                status = "已刷新 \(category.displayName) 第 \(issue) 期"
+            }
         } catch DrawSourceError.notFound {
-            status = "错误：该期未开奖或不存在"
+            withAnimation(AppMotion.reveal) {
+                status = "错误：该期未开奖或不存在"
+            }
         } catch {
-            status = "错误：\(error.localizedDescription)"
+            withAnimation(AppMotion.reveal) {
+                status = "错误：\(error.localizedDescription)"
+            }
         }
     }
 

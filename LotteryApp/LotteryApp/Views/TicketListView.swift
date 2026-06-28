@@ -14,6 +14,7 @@ struct TicketListView: View {
                     Label("刷新", systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.glass)
+                .interactiveControl()
                 .controlSize(.small)
             }
 
@@ -26,20 +27,7 @@ struct TicketListView: View {
             } else {
                 List(tickets, id: \.id) { t in
                     NavigationLink(value: t.id) {
-                        HStack(spacing: 10) {
-                            Image(systemName: Category(rawValue: t.category)?.symbolName ?? "ticket")
-                                .foregroundStyle(.secondary)
-                                .frame(width: 18)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("[\(Category(rawValue: t.category)?.displayName ?? t.category)] 第 \(t.issue) 期")
-                                    .lineLimit(1)
-                                let latest = t.verifications.max(by: { $0.createdAt < $1.createdAt })
-                                Text(latest.map { $0.totalAmount > 0 ? "最近：中奖 ¥\($0.totalAmount)" : "最近：未中奖/待确认" } ?? "未验奖")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
+                        TicketSummaryRow(ticket: t)
                     }
                 }
                 .listStyle(.inset)
@@ -56,6 +44,32 @@ struct TicketListView: View {
     }
 
     private func reload() {
-        tickets = model.store.allTickets()
+        withAnimation(AppMotion.reveal) {
+            tickets = model.store.allTickets()
+        }
+    }
+}
+
+private struct TicketSummaryRow: View {
+    let ticket: Ticket
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: Category(rawValue: ticket.category)?.symbolName ?? "ticket")
+                .foregroundStyle(.secondary)
+                .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("[\(Category(rawValue: ticket.category)?.displayName ?? ticket.category)] 第 \(ticket.issue) 期")
+                    .lineLimit(1)
+
+                let latest = ticket.verifications.max(by: { $0.createdAt < $1.createdAt })
+                Text(latest.map { $0.totalAmount > 0 ? "最近：中奖 ¥\($0.totalAmount)" : "最近：未中奖/待确认" } ?? "未验奖")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .softHoverRow()
     }
 }
