@@ -20,4 +20,28 @@ final class VisionRecognizerTests: XCTestCase {
     func testBadOutputThrows() {
         XCTAssertThrowsError(try OpenAIVisionRecognizer.parseContent("抱歉我无法识别"))
     }
+
+    func testEndpointURLAddsHTTPSWhenSchemeIsMissing() throws {
+        let url = try OpenAIVisionRecognizer.endpointURL(from: "api.example.com/v1")
+
+        XCTAssertEqual(url.absoluteString, "https://api.example.com/v1/chat/completions")
+    }
+
+    func testEndpointURLTrimsWhitespaceAndTrailingSlashes() throws {
+        let url = try OpenAIVisionRecognizer.endpointURL(from: " https://api.example.com/v1/// ")
+
+        XCTAssertEqual(url.absoluteString, "https://api.example.com/v1/chat/completions")
+    }
+
+    func testEndpointURLDoesNotDuplicateChatCompletionsPath() throws {
+        let url = try OpenAIVisionRecognizer.endpointURL(from: "https://api.example.com/v1/chat/completions")
+
+        XCTAssertEqual(url.absoluteString, "https://api.example.com/v1/chat/completions")
+    }
+
+    func testEndpointURLRejectsBaseURLWithoutHost() {
+        XCTAssertThrowsError(try OpenAIVisionRecognizer.endpointURL(from: "https:///v1")) { error in
+            XCTAssertEqual(error as? RecognizerError, .notConfigured)
+        }
+    }
 }
