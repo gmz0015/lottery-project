@@ -112,15 +112,13 @@ struct TicketDetailView: View {
         do {
             let version = try await model.fetchService.fetch(category: category, issue: ticket.issue,
                                                              source: source, forceRefresh: force)
-            var total = 0; var snaps: [BetResultSnapshot] = []
-            for bet in ticket.bets {
-                let r = PrizeEvaluator.evaluate(category: category, bet: bet,
-                                                drawFront: version.frontNumbers, drawBack: version.backNumbers,
-                                                prizes: version.prizes)
-                total += r.amount ?? 0
-                snaps.append(BetResultSnapshot(bet: bet, result: r))
-            }
-            _ = model.store.addVerification(ticket: ticket, drawVersion: version, results: snaps, totalAmount: total)
+            let evaluation = PrizeEvaluator.evaluateTicket(category: category,
+                                                           bets: ticket.bets,
+                                                           drawFront: version.frontNumbers,
+                                                           drawBack: version.backNumbers,
+                                                           prizes: version.prizes)
+            _ = model.store.addVerification(ticket: ticket, drawVersion: version,
+                                            results: evaluation.results, totalAmount: evaluation.totalAmount)
             refreshToken += 1
             status = "已追加验奖记录（\(source.displayName)）"
         } catch DrawSourceError.notFound {

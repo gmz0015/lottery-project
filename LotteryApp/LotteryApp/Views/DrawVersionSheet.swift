@@ -107,14 +107,13 @@ struct DrawVersionSheet: View {
     }
 
     private func reverify(with v: DrawVersion) async {
-        var total = 0; var snaps: [BetResultSnapshot] = []
-        for bet in ticket.bets {
-            let r = PrizeEvaluator.evaluate(category: category, bet: bet,
-                                            drawFront: v.frontNumbers, drawBack: v.backNumbers, prizes: v.prizes)
-            total += r.amount ?? 0
-            snaps.append(BetResultSnapshot(bet: bet, result: r))
-        }
-        _ = model.store.addVerification(ticket: ticket, drawVersion: v, results: snaps, totalAmount: total)
+        let evaluation = PrizeEvaluator.evaluateTicket(category: category,
+                                                       bets: ticket.bets,
+                                                       drawFront: v.frontNumbers,
+                                                       drawBack: v.backNumbers,
+                                                       prizes: v.prizes)
+        _ = model.store.addVerification(ticket: ticket, drawVersion: v,
+                                        results: evaluation.results, totalAmount: evaluation.totalAmount)
         onChange()
         dismiss()
     }

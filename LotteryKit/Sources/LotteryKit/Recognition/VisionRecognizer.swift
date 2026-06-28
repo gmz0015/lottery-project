@@ -48,7 +48,8 @@ public struct OpenAIVisionRecognizer: VisionRecognizer {
     你是彩票识别助手。识别图片中的中国福利彩票双色球(ssq)或体育彩票大乐透(dlt)。\
     只输出严格 JSON，不要任何解释或代码块标记，格式：\
     {"category":"ssq|dlt","issue":"期号","bets":[{"front":[红球/前区数字],"back":[蓝球/后区数字]}]}。\
-    双色球 front 为6个红球(1-33) back 为1个蓝球(1-16)；大乐透 front 为5个前区(1-35) back 为2个后区(1-12)。
+    每一组投注输出一个 bets 元素；复式投注不要拆开组合，保留在同一元素中，front/back 可以多于单式号码个数。\
+    双色球单式 front 为6个红球(1-33) back 为1个蓝球(1-16)；大乐透单式 front 为5个前区(1-35) back 为2个后区(1-12)。
     """
 
     public static func parseContent(_ content: String) throws -> RecognizedTicket {
