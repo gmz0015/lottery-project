@@ -100,13 +100,26 @@ struct DrawVersionSheet: View {
         if let err = NumberValidation.validate(category: category, front: front, back: back) {
             status = err; return
         }
-        _ = model.store.addVersion(to: draw, front: front, back: back, prizes: nil,
-                                   drawDate: nil, origin: "manual", sourceURL: nil)
-        frontText = ""; backText = ""; status = "已保存新版本"
+        let version: DrawVersion
+        if DataSourceKind(rawValue: draw.source) == .manual {
+            version = model.fetchService.recordManual(category: category, issue: draw.issue,
+                                                      front: front, back: back, prizes: nil)
+        } else {
+            version = model.store.addVersion(to: draw, front: front, back: back, prizes: nil,
+                                             drawDate: nil, origin: "manual", sourceURL: nil)
+        }
+        addVerification(with: version)
+        frontText = ""; backText = ""; status = "已保存新版本并追加验奖记录"
         onChange()
     }
 
     private func reverify(with v: DrawVersion) async {
+        addVerification(with: v)
+        onChange()
+        dismiss()
+    }
+
+    private func addVerification(with v: DrawVersion) {
         let evaluation = PrizeEvaluator.evaluateTicket(category: category,
                                                        bets: ticket.bets,
                                                        drawFront: v.frontNumbers,
@@ -114,7 +127,5 @@ struct DrawVersionSheet: View {
                                                        prizes: v.prizes)
         _ = model.store.addVerification(ticket: ticket, drawVersion: v,
                                         results: evaluation.results, totalAmount: evaluation.totalAmount)
-        onChange()
-        dismiss()
     }
 }

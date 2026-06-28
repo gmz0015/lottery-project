@@ -10,6 +10,8 @@ struct VerifyView: View {
     @State private var issue = ""
     @State private var frontText = ""
     @State private var backText = ""
+    @State private var manualDrawFrontText = ""
+    @State private var manualDrawBackText = ""
     @State private var selectedSource: DataSourceKind = .officialCWL
     @State private var status = ""
     @State private var busy = false
@@ -25,6 +27,9 @@ struct VerifyView: View {
         && !issue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         && !frontText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         && !backText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        && (selectedSource != .manual
+            || (!manualDrawFrontText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && !manualDrawBackText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
     }
 
     var body: some View {
@@ -90,6 +95,18 @@ struct VerifyView: View {
                     ForEach(model.availableSources(for: category), id: \.self) { Text($0.displayName).tag($0) }
                 }
                 .pickerStyle(.menu)
+
+                if selectedSource == .manual {
+                    Divider()
+                    Label("手动录入开奖号", systemImage: "number.square")
+                        .font(.subheadline.weight(.semibold))
+                    TextField("开奖号前区/红球（空格分隔）", text: $manualDrawFrontText)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("manualDrawFrontField")
+                    TextField("开奖号后区/蓝球（空格分隔）", text: $manualDrawBackText)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("manualDrawBackField")
+                }
 
                 HStack {
                     Label("单式/复式", systemImage: "square.stack.3d.up")
@@ -162,6 +179,10 @@ struct VerifyView: View {
         }
         let trimmedIssue = issue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedIssue.isEmpty else { status = "错误：请填写期数"; return }
+        if let err = manualDrawValidationError() {
+            status = "错误：\(err)"
+            return
+        }
         busy = true; status = "验奖中…"
         defer { busy = false }
         do {
@@ -170,8 +191,7 @@ struct VerifyView: View {
             let unitCount = bets.reduce(0) { $0 + $1.singleBetCount(category: category) }
             let ticket = model.store.saveTicket(category: category, issue: trimmedIssue, bets: bets,
                                                 imageFileName: fileName, cost: Double(unitCount * 2), purchaseDate: Date())
-            let version = try await model.fetchService.fetch(category: category, issue: trimmedIssue,
-                                                             source: selectedSource, forceRefresh: false)
+            let version = try await drawVersion(for: trimmedIssue)
             let evaluation = PrizeEvaluator.evaluateTicket(category: category,
                                                            bets: bets,
                                                            drawFront: version.frontNumbers,
@@ -188,9 +208,37 @@ struct VerifyView: View {
             }
         } catch DrawSourceError.notFound {
             status = "错误：该期未开奖或不存在"
+        } catch DrawSourceError.badResponse(let message) {
+            status = "错误：\(message)"
         } catch {
             status = "错误：\(error.localizedDescription)"
         }
+    }
+
+    private func parseDrawNumbers(_ text: String) -> [Int] {
+        text.split(whereSeparator: { $0.isWhitespace || $0 == "," || $0 == "，" }).compactMap { Int($0) }
+    }
+
+    private func drawVersion(for issue: String) async throws -> DrawVersion {
+        if selectedSource != .manual {
+            return try await model.fetchService.fetch(category: category, issue: issue,
+                                                      source: selectedSource, forceRefresh: false)
+        }
+
+        let front = parseDrawNumbers(manualDrawFrontText)
+        let back = parseDrawNumbers(manualDrawBackText)
+        if let err = NumberValidation.validate(category: category, front: front, back: back) {
+            throw DrawSourceError.badResponse(err)
+        }
+        return model.fetchService.recordManual(category: category, issue: issue,
+                                               front: front, back: back, prizes: nil)
+    }
+
+    private func manualDrawValidationError() -> String? {
+        guard selectedSource == .manual else { return nil }
+        return NumberValidation.validate(category: category,
+                                         front: parseDrawNumbers(manualDrawFrontText),
+                                         back: parseDrawNumbers(manualDrawBackText))
     }
 
     private func ensureSelectedSource() {

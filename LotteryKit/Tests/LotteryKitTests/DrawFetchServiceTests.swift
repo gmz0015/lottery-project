@@ -33,4 +33,21 @@ final class DrawFetchServiceTests: XCTestCase {
         XCTAssertEqual(v2.versionNumber, 2)
         XCTAssertEqual(v2.backNumbers, [10])
     }
+
+    func testRecordManualVersionCreatesManualDrawAndReusesMatchingLatest() throws {
+        let store = try Store(inMemory: true)
+        let svc = DrawFetchService(store: store, sources: [:])
+
+        let v1 = svc.recordManual(category: .ssq, issue: "24001",
+                                  front: [1,2,3,4,5,6], back: [16], prizes: nil)
+        let again = svc.recordManual(category: .ssq, issue: "24001",
+                                     front: [1,2,3,4,5,6], back: [16], prizes: nil)
+        let v2 = svc.recordManual(category: .ssq, issue: "24001",
+                                  front: [1,2,3,4,5,7], back: [16], prizes: nil)
+
+        XCTAssertEqual(v1.draw?.source, DataSourceKind.manual.rawValue)
+        XCTAssertEqual(again.id, v1.id)
+        XCTAssertEqual(v2.versionNumber, 2)
+        XCTAssertEqual(svc.cachedLatest(category: .ssq, issue: "24001", source: .manual)?.id, v2.id)
+    }
 }

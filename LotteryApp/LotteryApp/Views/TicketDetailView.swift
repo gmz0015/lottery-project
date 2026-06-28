@@ -44,9 +44,15 @@ struct TicketDetailView: View {
                         .font(.headline)
                     Spacer()
                     ForEach(model.availableSources(for: category), id: \.self) { src in
-                        Button(src.displayName) { Task { await reverify(source: src, force: false) } }
-                            .buttonStyle(.glass)
-                            .disabled(busy)
+                        Button(src.displayName) {
+                            if src == .manual {
+                                sheetDraw = model.store.createOrGetDraw(category: category, issue: ticket.issue, source: .manual)
+                            } else {
+                                Task { await reverify(source: src, force: false) }
+                            }
+                        }
+                        .buttonStyle(.glass)
+                        .disabled(busy)
                     }
                 }
 
@@ -123,6 +129,8 @@ struct TicketDetailView: View {
             status = "已追加验奖记录（\(source.displayName)）"
         } catch DrawSourceError.notFound {
             status = "该期未开奖或不存在"
+        } catch DrawSourceError.badResponse(let message) {
+            status = "错误：\(message)"
         } catch {
             status = "错误：\(error.localizedDescription)"
         }
