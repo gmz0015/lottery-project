@@ -27,7 +27,7 @@ struct DrawsView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 260)
+                .frame(width: 220)
 
                 Picker("来源", selection: $sourceFilter) {
                     Text("全部来源").tag("all")
@@ -36,31 +36,43 @@ struct DrawsView: View {
                     }
                 }
                 .pickerStyle(.menu)
-                .frame(width: 150)
+                .frame(width: 135)
 
                 Button {
                     entrySheetMode = .manual
                 } label: {
-                    Label("手动录入", systemImage: "square.and.pencil")
+                    Image(systemName: "square.and.pencil")
+                        .frame(width: 22, height: 20)
                 }
                 .buttonStyle(.glass)
+                .controlSize(.small)
                 .interactiveControl()
+                .help("手动录入开奖")
+                .accessibilityLabel("手动录入开奖")
 
                 Button {
                     entrySheetMode = .fetch
                 } label: {
-                    Label("拉取指定期", systemImage: "arrow.down.doc")
+                    Image(systemName: "arrow.down.doc")
+                        .frame(width: 22, height: 20)
                 }
                 .buttonStyle(.glassProminent)
+                .controlSize(.small)
                 .interactiveControl()
+                .help("拉取指定期开奖")
+                .accessibilityLabel("拉取指定期开奖")
 
                 Button {
                     reloadDraws()
                 } label: {
-                    Label("刷新列表", systemImage: "arrow.clockwise")
+                    Image(systemName: "arrow.clockwise")
+                        .frame(width: 22, height: 20)
                 }
                 .buttonStyle(.glass)
+                .controlSize(.small)
                 .interactiveControl()
+                .help("刷新列表")
+                .accessibilityLabel("刷新列表")
                 .accessibilityIdentifier("reloadDrawsButton")
             }
 
