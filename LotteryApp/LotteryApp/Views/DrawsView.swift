@@ -8,6 +8,7 @@ struct DrawsView: View {
     @State private var sourceFilter = "all"
     @State private var status = ""
     @State private var refreshingDrawID: UUID?
+    @State private var entrySheetMode: DrawEntrySheet.Mode?
 
     private var filteredDraws: [Draw] {
         draws.filter { draw in
@@ -36,6 +37,20 @@ struct DrawsView: View {
                 }
                 .pickerStyle(.menu)
                 .frame(width: 150)
+
+                Button {
+                    entrySheetMode = .manual
+                } label: {
+                    Label("手动录入", systemImage: "square.and.pencil")
+                }
+                .buttonStyle(.glass)
+
+                Button {
+                    entrySheetMode = .fetch
+                } label: {
+                    Label("拉取指定期", systemImage: "arrow.down.doc")
+                }
+                .buttonStyle(.glassProminent)
 
                 Button {
                     reloadDraws()
@@ -145,6 +160,11 @@ struct DrawsView: View {
         .background(.regularMaterial)
         .navigationTitle("开奖信息")
         .onAppear(perform: reloadDraws)
+        .sheet(item: $entrySheetMode) { mode in
+            DrawEntrySheet(initialMode: mode) {
+                reloadDraws()
+            }
+        }
     }
 
     private func reloadDraws() {
