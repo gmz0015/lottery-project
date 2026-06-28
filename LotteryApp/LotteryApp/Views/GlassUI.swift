@@ -27,11 +27,17 @@ struct ContentBar<Actions: View>: View {
         HStack(spacing: 12) {
             Label(title, systemImage: systemImage)
                 .font(.headline)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .layoutPriority(2)
 
             if let detail {
                 Text(detail)
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
             }
 
             Spacer(minLength: 16)
