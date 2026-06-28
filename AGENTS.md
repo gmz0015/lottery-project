@@ -4,7 +4,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 A lottery-checking (验奖) toolkit for China's **大乐透 (dlt)** and **双色球 (ssq)** lotteries, made of two independent subprojects that talk over HTTP:
 
-- **Mac App** — `LotteryKit/` (logic, a local SwiftPM package) + `LotteryChecker-Sources/` (SwiftUI). Photo of a ticket → multimodal model recognizes numbers → user confirms → fetch official/self-hosted draw results → evaluate prizes → record & chart.
+- **Mac App** — `LotteryKit/` (logic, a local SwiftPM package) + `LotteryApp/` (Xcode macOS app project, SwiftUI sources in `LotteryApp/LotteryApp/`). Photo of a ticket → multimodal model recognizes numbers → user confirms → fetch official/self-hosted draw results → evaluate prizes → record & chart.
 - **Web service** — `webservice/` (React+Vite frontend, FastAPI+SQLite/Postgres backend). Manual entry of draw numbers + optional prize amounts; exposes a REST API that the Mac App consumes as one data source.
 
 ## Commands
@@ -17,7 +17,14 @@ swift test --filter PrizeEvaluatorDLTTests          # single test class
 # If the system default is still Command Line Tools, prefix:
 # DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 ```
-Building/running the `.app` requires assembling an Xcode project from `LotteryKit/` + `LotteryChecker-Sources/` — see `XCODE-SETUP.md`. The SwiftUI layer is **not** part of `swift test`; it only builds inside the Xcode project.
+Building/running the `.app` uses the existing `LotteryApp/LotteryApp.xcodeproj`, which references `LotteryKit/` as a local package — see `XCODE-SETUP.md`. The SwiftUI layer is **not** part of `swift test`; it only builds inside the Xcode project.
+
+**Mac App (`LotteryApp/`)**:
+```bash
+open LotteryApp/LotteryApp.xcodeproj
+script/build_and_run.sh          # command-line build + run
+script/build_and_run.sh --verify # build + launch smoke check
+```
 
 **Web backend (`webservice/backend/`)** — Python 3.12:
 ```bash
@@ -68,7 +75,7 @@ Pure function over `(category, bet, drawFront, drawBack, prizes)`. Tier tables `
 Standard FastAPI layout: `routers/` (auth, draws) → `schemas.py` (Pydantic, **camelCase** over the wire) → `models.py` (SQLAlchemy) → `database.py`. Auth is a shared password → Bearer token (`auth.py`). `config.py` reads env (`.env`): `database_url`, `api_token`, `admin_password`, `read_requires_auth`, `cors_origins`. SQLite by default (file mounted to host so restarts persist), swappable to Postgres. API contract is documented in `webservice/README.md` (`/api/v1`).
 
 ## Conventions
-- `LotteryKit` has **no third-party dependencies** and is the place for all testable logic; keep view code in `LotteryChecker-Sources/` thin.
+- `LotteryKit` has **no third-party dependencies** and is the place for all testable logic; keep view code in `LotteryApp/LotteryApp/` thin.
 - Category and source identifiers are stored as `rawValue` strings in SwiftData (`"ssq"`, `"dlt"`, `"manual"`, etc.) — use the enums, not literals, in new code.
 - Web API JSON is camelCase even though Python is snake_case (Pydantic aliases handle the mapping).
 - Design docs: `docs/superpowers/specs/` (specs) and `docs/superpowers/plans/` (plans); architecture diagrams in `docs/design-diagrams.html`.

@@ -4,10 +4,10 @@
 
 | 子项目 | 目录 | 技术栈 | 说明 |
 |---|---|---|---|
-| **Mac App** | [`LotteryKit/`](LotteryKit/) + [`LotteryChecker-Sources/`](LotteryChecker-Sources/) | SwiftUI · SwiftData · Swift Charts | 上传彩票照片 → 大模型识别号码 → 可编辑确认 → 拉取官方/自建开奖数据 → 验奖、记账、统计 |
+| **Mac App** | [`LotteryKit/`](LotteryKit/) + [`LotteryApp/`](LotteryApp/) | SwiftUI · SwiftData · Swift Charts | 上传彩票照片 → 大模型识别号码 → 可编辑确认 → 拉取官方/自建开奖数据 → 验奖、记账、统计 |
 | **Web 服务** | [`webservice/`](webservice/) | React + Vite · FastAPI · SQLite/Postgres | 网页手动录入开奖号码（含可选奖金），对外提供 REST API 作为 Mac App 的一种数据源 |
 
-> Mac App 采用「**本地 SwiftPM 包 + Xcode App 工程**」结构:业务逻辑沉淀在 `LotteryKit/`（可独立 `swift test`），界面源码在 `LotteryChecker-Sources/`，由 Xcode 工程引用本地包并打包为可上架的 `.app`。搭建步骤见 [`XCODE-SETUP.md`](XCODE-SETUP.md)。
+> Mac App 采用「**本地 SwiftPM 包 + Xcode App 工程**」结构:业务逻辑沉淀在 `LotteryKit/`（可独立 `swift test`），界面源码与资源在 `LotteryApp/LotteryApp/`，由 `LotteryApp/LotteryApp.xcodeproj` 引用本地包并打包为可上架的 `.app`。工程说明见 [`XCODE-SETUP.md`](XCODE-SETUP.md)。
 
 核心流程：**拍照上传 → 视觉模型识别彩种与号码 → 用户确认 → 选数据源拉取开奖结果 → 评奖**。所有数据本地留存，可反复用不同数据源/版本重新验奖。
 
@@ -38,10 +38,12 @@
 │   ├── Package.swift           #   库 + 测试 target
 │   ├── Sources/LotteryKit/     #   模型/校验/评奖/数据源/识别/持久化/统计（全部单测）
 │   └── Tests/LotteryKitTests/
-├── LotteryChecker-Sources/     # Mac App 界面层：SwiftUI 源码，由 Xcode 工程引用
-│   ├── LotteryCheckerApp.swift #   @main App 入口
-│   └── Views/                  #   各页面视图
-├── XCODE-SETUP.md              # 用 Xcode 搭建可上架 App 工程的步骤（方案 A）
+├── LotteryApp/                 # Mac App：Xcode 工程 + SwiftUI 界面层
+│   ├── LotteryApp.xcodeproj
+│   ├── LotteryApp/             #   App 入口、Views、Assets.xcassets
+│   ├── LotteryAppTests/
+│   └── LotteryAppUITests/
+├── XCODE-SETUP.md              # Xcode 工程说明、签名/沙盒/分发要点
 ├── webservice/             # Web 服务
 │   ├── backend/            # FastAPI + SQLAlchemy
 │   ├── frontend/           # React + Vite
@@ -57,13 +59,12 @@
 
 ## 运行 Mac App
 
-需要安装完整的 **Xcode**（不是仅 Command Line Tools —— SwiftData/Charts 及打包所需）。首次需把 `LotteryKit/` 与 `LotteryChecker-Sources/` 组装成一个 Xcode App 工程，**完整步骤见 [`XCODE-SETUP.md`](XCODE-SETUP.md)**，要点：
+需要安装完整的 **Xcode**（不是仅 Command Line Tools —— SwiftData/Charts 及打包所需）。仓库已包含 `LotteryApp/LotteryApp.xcodeproj`，**工程说明见 [`XCODE-SETUP.md`](XCODE-SETUP.md)**，要点：
 
 1. 装完整版 Xcode，`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`。
-2. Xcode 新建 macOS App 工程 `LotteryChecker`（存到仓库根目录）。
-3. **Add Package Dependencies ▸ Add Local…** 选 `LotteryKit/`，把库勾给 App target。
-4. 把 `LotteryChecker-Sources/` 的源码加入工程 target。
-5. 配 App Sandbox（网络客户端 + 用户选取文件）、Bundle ID、图标 → ⌘R 运行 / Archive 上架。
+2. 打开 `LotteryApp/LotteryApp.xcodeproj`，工程已通过本地包依赖引用 `LotteryKit/`。
+3. 配 App Sandbox（网络客户端 + 用户选取文件）、Bundle ID、图标 → ⌘R 运行 / Archive 上架。
+4. 也可用 `script/build_and_run.sh` 从命令行构建并启动。
 
 **首次使用**：先在「设置」页填视觉模型（Base URL / API Key / 模型名）；如需自建数据源，开启 Web 服务并填 Base URL / Token。然后到「验奖」页：选图 → 识别 → 核对 → 选源 → 验奖。
 

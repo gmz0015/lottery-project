@@ -1,6 +1,6 @@
-# 用 Xcode 搭建可上架的 App 工程(方案 A)
+# Xcode App 工程说明
 
-仓库已重构为「**本地 SwiftPM 包 + App 源码**」两部分:
+仓库现在采用「**本地 SwiftPM 包 + Xcode App 工程**」结构:
 
 ```
 Lottery-Claude/
@@ -8,82 +8,67 @@ Lottery-Claude/
 │   ├── Package.swift
 │   ├── Sources/LotteryKit/…
 │   └── Tests/LotteryKitTests/…
-└── LotteryChecker-Sources/    ← App 源码(SwiftUI),待加入下面新建的工程
-    ├── LotteryCheckerApp.swift
-    ├── AppModel.swift
-    ├── Aliases.swift
-    └── Views/…
+└── LotteryApp/                ← 已创建好的 macOS Xcode 工程
+    ├── LotteryApp.xcodeproj
+    ├── LotteryApp/            ← SwiftUI App 源码与 Assets.xcassets
+    ├── LotteryAppTests/
+    └── LotteryAppUITests/
 ```
 
-下面把它们组装成一个可构建、可上架的 Xcode 工程。
+`LotteryChecker-Sources/` 只是创建 Xcode 工程前的临时源码目录；源码迁入 `LotteryApp/LotteryApp/` 后已删除。之后改界面时直接编辑 `LotteryApp/LotteryApp/`。
 
 ---
 
 ## 0. 前置:安装完整版 Xcode
 
-当前机器只有 **Command Line Tools**,无法构建 `.app`、Archive、公证或上传 App Store。
+需要完整 **Xcode** 才能构建 `.app`、Archive、公证或上传 App Store。仅安装 Command Line Tools 时,`LotteryKit` 里使用的 SwiftData 宏插件也可能无法加载。
 
-1. App Store 搜索安装 **Xcode**(免费,数 GB)。
-2. 安装后执行一次切换:
+安装后执行一次切换:
+
    ```bash
    sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
    xcodebuild -version   # 能打印版本号即 OK
    ```
 
-> 装好 Xcode 后,`LotteryKit` 包就能独立跑测试了:
-> ```bash
-> cd LotteryKit && swift test
-> ```
-> (现在用 Command Line Tools 跑会因缺少 SwiftData 宏插件而失败,这是工具链限制,不是代码问题。)
+---
+
+## 1. 运行现有 App 工程
+
+用 Xcode 打开:
+
+```bash
+open LotteryApp/LotteryApp.xcodeproj
+```
+
+当前工程:
+
+- App target: `LotteryApp`
+- Bundle ID: `org.ultimate.LotteryApp`
+- 本地包依赖: `../LotteryKit`
+- App 入口: `LotteryApp/LotteryApp/LotteryCheckerApp.swift`
+
+命令行构建/运行脚本:
+
+```bash
+script/build_and_run.sh
+script/build_and_run.sh --verify
+script/build_and_run.sh --logs
+```
+
+逻辑层单测仍可独立运行:
+
+```bash
+cd LotteryKit
+swift test
+```
+
+Xcode 的 Product ▸ Test 也会发现 `LotteryKit` 包测试。
 
 ---
 
-## 1. 新建 macOS App 工程
+## 2. 配置为可上架(签名 + 沙盒)
 
-1. Xcode → **File ▸ New ▸ Project…**
-2. 选 **macOS ▸ App**,Next。
-3. 填写:
-   - **Product Name**: `LotteryChecker`
-   - **Team**: 选你的 `Apple Development: yinming fu`(已有签名身份)
-   - **Organization Identifier**: 例如 `com.yinmingfu`(最终 Bundle ID 会是 `com.yinmingfu.LotteryChecker`)
-   - **Interface**: SwiftUI　**Language**: Swift
-   - **Storage**: None(我们自己用 SwiftData)
-4. 保存位置选**仓库根目录** `Lottery-Claude/`。
-   Xcode 会创建 `Lottery-Claude/LotteryChecker/LotteryChecker.xcodeproj`,不会与 `LotteryChecker-Sources/` 冲突。
-
----
-
-## 2. 把 LotteryKit 作为本地包加进去
-
-1. **File ▸ Add Package Dependencies…**
-2. 左下角 **Add Local…**,选仓库里的 `LotteryKit/` 文件夹,**Add Package**。
-3. 在弹出的 target 选择里,把 **LotteryKit** 库勾给 **LotteryChecker** target。
-
-完成后工程左侧会出现一个本地 `LotteryKit` 包引用。
-
----
-
-## 3. 把 App 源码加入工程
-
-1. 在 Finder 里,把 `LotteryChecker-Sources/` 内的全部内容
-   (`LotteryCheckerApp.swift`、`AppModel.swift`、`Aliases.swift`、`Views/`)
-   **移动**到 Xcode 新建出来的 `LotteryChecker/LotteryChecker/` 目录里。
-2. **删除 Xcode 自动生成的占位文件**:`ContentView.swift`,以及它自带的 `LotteryCheckerApp.swift`
-   (我们的版本会覆盖它——确保最终只保留 `LotteryChecker-Sources` 里那份 `@main`)。
-3. 回到 Xcode:右键 `LotteryChecker` 组 ▸ **Add Files to "LotteryChecker"…**,
-   选中刚移入的文件和 `Views` 文件夹:
-   - **不要**勾 "Copy items if needed"(文件已就位)
-   - "Create groups"
-   - Target 勾 **LotteryChecker**
-4. 删除已空的 `LotteryChecker-Sources/` 文件夹。
-
-> App 代码里用的是 `import LotteryKit`,无需改动。
-
----
-
-## 4. 配置为可上架(签名 + 沙盒)
-
-选中工程 ▸ **LotteryChecker** target:
+选中工程 ▸ **LotteryApp** target:
 
 ### Signing & Capabilities
 - **Automatically manage signing** 打勾,Team 选你的账号。
@@ -98,14 +83,14 @@ Lottery-Claude/
 
 ---
 
-## 5. 构建与验证
+## 3. 构建与验证
 
 - **⌘R** 运行 App。
 - **⌘U** 跑测试(`LotteryKit` 包的单测会随工程一起被发现)。
 
 ---
 
-## 6. 上架 / 分发
+## 4. 上架 / 分发
 
 - **App Store**:**Product ▸ Archive** → Organizer 里 **Distribute App ▸ App Store Connect**。
   需要先在 [App Store Connect](https://appstoreconnect.apple.com) 建好 App 记录(需付费的 Apple Developer Program)。
@@ -119,5 +104,5 @@ Lottery-Claude/
 ## 之后的日常
 
 - **改业务逻辑 / 加单测** → 编辑 `LotteryKit/`,可在终端 `cd LotteryKit && swift test` 独立验证,也可在 Xcode ⌘U。
-- **改界面** → 编辑工程里的 SwiftUI 文件。
+- **改界面** → 编辑 `LotteryApp/LotteryApp/` 里的 SwiftUI 文件。
 - 工程文件 `*.xcodeproj` 可以提交进 git(用户数据已被 `.gitignore` 排除)。
