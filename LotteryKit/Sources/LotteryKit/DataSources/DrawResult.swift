@@ -23,9 +23,18 @@ public struct DrawResult: Equatable, Sendable {
     }
 }
 
-public enum DrawSourceError: Error, Equatable {
+public enum DrawSourceError: Error, Equatable, LocalizedError {
     case notFound
     case badResponse(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .notFound:
+            return "该期未开奖或不存在"
+        case .badResponse(let message):
+            return message
+        }
+    }
 }
 
 public protocol DrawDataSource: Sendable {

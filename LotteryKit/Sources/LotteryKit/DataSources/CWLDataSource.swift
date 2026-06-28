@@ -19,7 +19,12 @@ public struct CWLDataSource: DrawDataSource {
             struct Grade: Decodable { let type: Int; let typemoney: String? }
             let result: [Item]
         }
-        let resp = try JSONDecoder().decode(Resp.self, from: data)
+        let resp: Resp
+        do {
+            resp = try JSONDecoder().decode(Resp.self, from: data)
+        } catch {
+            throw DrawSourceError.badResponse("官方福彩返回内容不是有效开奖数据，请稍后重试或使用手动录入。")
+        }
         guard let item = resp.result.first(where: { $0.code == issue }) ?? resp.result.first else {
             throw DrawSourceError.notFound
         }
@@ -42,7 +47,10 @@ public struct CWLDataSource: DrawDataSource {
         var req = URLRequest(url: Self.endpoint(issue: issue))
         req.setValue("Mozilla/5.0 (Macintosh)", forHTTPHeaderField: "User-Agent")
         req.setValue("http://www.cwl.gov.cn/", forHTTPHeaderField: "Referer")
-        let (data, _) = try await URLSession.shared.data(for: req)
+        let (data, response) = try await URLSession.shared.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            throw DrawSourceError.badResponse("官方福彩接口返回 HTTP \(http.statusCode)，可能被风控拦截；请稍后重试或使用手动录入。")
+        }
         return try Self.parse(data, issue: issue)
     }
 }

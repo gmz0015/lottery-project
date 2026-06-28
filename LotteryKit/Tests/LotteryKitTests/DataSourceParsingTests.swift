@@ -24,6 +24,16 @@ final class DataSourceParsingTests: XCTestCase {
         XCTAssertEqual(r.source, .officialCWL)
     }
 
+    func testCWLParseReportsBadResponseForHTMLBlockPage() {
+        let html = "<!doctype html><html><title>403 Forbidden</title></html>".data(using: .utf8)!
+        XCTAssertThrowsError(try CWLDataSource.parse(html, issue: "24001")) { error in
+            guard case DrawSourceError.badResponse(let message) = error else {
+                return XCTFail("Expected badResponse, got \(error)")
+            }
+            XCTAssertTrue(message.contains("官方福彩"))
+        }
+    }
+
     func testWebServiceParse() throws {
         let json = """
         {"category":"ssq","issue":"24001","frontNumbers":[1,2,3,4,5,6],"backNumbers":[16],"drawDate":"2024-01-01","prizes":{"一等奖":5000000}}
