@@ -1,6 +1,6 @@
 # 彩票验奖 Mac App Implementation Plan
 
-> **⚠️ 结构已于 2026-06-23 重构(本文为历史存档,路径未更新):** 工程已从单一 SwiftPM 拆为「本地包 `LotteryKit/` + App 源码 `LotteryChecker-Sources/` + Xcode App 工程」(方案 A)。下文中的 `macapp/` 路径与 `swift run LotteryChecker` 已失效,以仓库根 README 与 [`../../changes/2026-06-23-restructure-spm-to-local-package-and-app.md`](../../changes/2026-06-23-restructure-spm-to-local-package-and-app.md) 为准。
+> **⚠️ 结构已重构(本文为历史存档,路径未更新):** 工程已从单一 SwiftPM 拆为「本地包 `LotteryKit/` + Xcode App 工程 `LotteryApp/`」。下文中的 `macapp/` 路径、`LotteryChecker-Sources/` 临时目录与 `swift run LotteryChecker` 已失效,以仓库根 README 与 [`../../changes/2026-06-23-restructure-spm-to-local-package-and-app.md`](../../changes/2026-06-23-restructure-spm-to-local-package-and-app.md) 为准。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
