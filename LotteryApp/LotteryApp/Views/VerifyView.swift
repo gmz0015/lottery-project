@@ -78,11 +78,13 @@ struct VerifyView: View {
                 TextField("期数", text: $issue)
                     .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("issueField")
-                TextField("前区/红球（空格分隔）", text: $frontText)
+                TextField("前区/红球（每注一行，空格分隔）", text: $frontText, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
+                    .lineLimit(2...6)
                     .accessibilityIdentifier("frontNumbersField")
-                TextField("后区/蓝球（空格分隔）", text: $backText)
+                TextField("后区/蓝球（每注一行，空格分隔）", text: $backText, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
+                    .lineLimit(2...6)
                     .accessibilityIdentifier("backNumbersField")
                 Picker("数据源", selection: $selectedSource) {
                     ForEach(model.availableSources(for: category), id: \.self) { Text($0.displayName).tag($0) }
@@ -90,7 +92,7 @@ struct VerifyView: View {
                 .pickerStyle(.menu)
 
                 HStack {
-                    Label("单式票", systemImage: "1.circle")
+                    Label("单式/复式", systemImage: "square.stack.3d.up")
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button {
@@ -117,8 +119,8 @@ struct VerifyView: View {
         }
     }
 
-    private func parseNums(_ s: String) -> [Int] {
-        s.split(whereSeparator: { $0.isWhitespace || $0 == "," || $0 == "，" }).compactMap { Int($0) }
+    private func formatNumbers(_ numbers: [Int]) -> String {
+        numbers.map(String.init).joined(separator: " ")
     }
 
     private func pickImage() {
@@ -139,8 +141,8 @@ struct VerifyView: View {
             let t = try await model.recognizer.recognize(imageData: imageData)
             category = t.category
             issue = t.issue
-            frontText = (t.bets.first?.front ?? []).map(String.init).joined(separator: " ")
-            backText = (t.bets.first?.back ?? []).map(String.init).joined(separator: " ")
+            frontText = t.bets.map { formatNumbers($0.front) }.joined(separator: "\n")
+            backText = t.bets.map { formatNumbers($0.back) }.joined(separator: "\n")
             selectedSource = model.availableSources(for: t.category).first ?? .manual
             status = "识别完成，请核对"
         } catch RecognizerError.notConfigured {
@@ -151,9 +153,12 @@ struct VerifyView: View {
     }
 
     private func verify() async {
-        let front = parseNums(frontText), back = parseNums(backText)
-        if let err = NumberValidation.validate(category: category, front: front, back: back) {
-            status = "错误：\(err)"; return
+        let bets: [Bet]
+        do {
+            bets = try BetTextParser.parse(category: category, frontText: frontText, backText: backText)
+        } catch {
+            status = "错误：\(error.localizedDescription)"
+            return
         }
         let trimmedIssue = issue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedIssue.isEmpty else { status = "错误：请填写期数"; return }
@@ -162,19 +167,25 @@ struct VerifyView: View {
         do {
             var fileName: String?
             if let imageData { fileName = try? imageStore.save(imageData) }
-            let bet = Bet(front: front, back: back)
-            let ticket = model.store.saveTicket(category: category, issue: trimmedIssue, bets: [bet],
-                                                imageFileName: fileName, cost: 2, purchaseDate: Date())
+            let unitCount = bets.reduce(0) { $0 + $1.singleBetCount(category: category) }
+            let ticket = model.store.saveTicket(category: category, issue: trimmedIssue, bets: bets,
+                                                imageFileName: fileName, cost: Double(unitCount * 2), purchaseDate: Date())
             let version = try await model.fetchService.fetch(category: category, issue: trimmedIssue,
                                                              source: selectedSource, forceRefresh: false)
-            let r = PrizeEvaluator.evaluate(category: category, bet: bet,
-                                            drawFront: version.frontNumbers, drawBack: version.backNumbers,
-                                            prizes: version.prizes)
-            let snap = BetResultSnapshot(bet: bet, result: r)
+            let evaluation = PrizeEvaluator.evaluateTicket(category: category,
+                                                           bets: bets,
+                                                           drawFront: version.frontNumbers,
+                                                           drawBack: version.backNumbers,
+                                                           prizes: version.prizes)
             _ = model.store.addVerification(ticket: ticket, drawVersion: version,
-                                            results: [snap], totalAmount: r.amount ?? 0)
-            status = r.isWin ? "中奖：\(r.tierName ?? "")（\(r.amount.map { "¥\($0)" } ?? "金额以官方为准")）"
-                             : "未中奖"
+                                            results: evaluation.results, totalAmount: evaluation.totalAmount)
+            if evaluation.isWin {
+                status = evaluation.totalAmount > 0
+                    ? "中奖：¥\(evaluation.totalAmount)（共 \(unitCount) 注）"
+                    : "中奖：金额以官方为准（共 \(unitCount) 注）"
+            } else {
+                status = "未中奖（共 \(unitCount) 注）"
+            }
         } catch DrawSourceError.notFound {
             status = "错误：该期未开奖或不存在"
         } catch {

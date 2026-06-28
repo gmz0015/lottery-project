@@ -13,6 +13,18 @@ public struct BetResult: Equatable, Codable, Sendable {
     }
 }
 
+public struct TicketEvaluation: Equatable, Codable, Sendable {
+    public let results: [BetResultSnapshot]
+    public let totalAmount: Int
+    public let isWin: Bool
+
+    public init(results: [BetResultSnapshot], totalAmount: Int) {
+        self.results = results
+        self.totalAmount = totalAmount
+        self.isWin = results.contains { $0.result.isWin }
+    }
+}
+
 public enum PrizeEvaluator {
     public static func evaluate(category: Category, bet: Bet,
                                 drawFront: [Int], drawBack: [Int],
@@ -29,6 +41,25 @@ public enum PrizeEvaluator {
             amount = fixed
         }
         return BetResult(tierName: tier, amount: amount, frontMatched: fm, backMatched: bm)
+    }
+
+    public static func evaluateTicket(category: Category, bets: [Bet],
+                                      drawFront: [Int], drawBack: [Int],
+                                      prizes: [String: Int]?) -> TicketEvaluation {
+        var total = 0
+        var snapshots: [BetResultSnapshot] = []
+        for bet in bets {
+            for single in bet.expandedSingles(category: category) {
+                let result = evaluate(category: category,
+                                      bet: single,
+                                      drawFront: drawFront,
+                                      drawBack: drawBack,
+                                      prizes: prizes)
+                total += result.amount ?? 0
+                snapshots.append(BetResultSnapshot(bet: single, result: result))
+            }
+        }
+        return TicketEvaluation(results: snapshots, totalAmount: total)
     }
 
     static func ssqTier(r: Int, b: Int) -> (String?, Int?) {
