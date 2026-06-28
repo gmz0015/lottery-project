@@ -15,13 +15,14 @@ struct DashboardView: View {
                 MetricTile(title: "中奖率", value: String(format: "%.0f%%", summary.winRate * 100), systemImage: "target", tint: .orange)
             }
 
-            GlassPanel {
+            GlassPanel(interactive: true) {
                 Label("最近彩票", systemImage: "clock")
                     .font(.headline)
 
                 if tickets.isEmpty {
                     Text("暂无彩票记录")
                         .foregroundStyle(.secondary)
+                        .softRevealTransition()
                 }
 
                 ForEach(tickets.prefix(5), id: \.id) { t in
@@ -35,10 +36,16 @@ struct DashboardView: View {
                             .foregroundStyle(amt > 0 ? .green : .secondary)
                     }
                     .padding(.vertical, 6)
+                    .softHoverRow()
                 }
             }
         }
         .navigationTitle("首页")
-        .onAppear { tickets = model.store.allTickets() }
+        .animation(AppMotion.reveal, value: tickets.count)
+        .onAppear {
+            withAnimation(AppMotion.reveal) {
+                tickets = model.store.allTickets()
+            }
+        }
     }
 }

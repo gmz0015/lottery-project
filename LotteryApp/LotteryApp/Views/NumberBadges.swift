@@ -13,7 +13,9 @@ struct NumberBadges: View {
                     .frame(width: 30, height: 30)
                     .background(Circle().fill(matched.contains(n) ? color : Color.gray.opacity(0.25)))
                     .foregroundStyle(matched.contains(n) ? .white : .primary)
+                    .contentTransition(.numericText())
             }
         }
+        .animation(AppMotion.quick, value: matched)
     }
 }

@@ -1,6 +1,87 @@
 import SwiftUI
 import LotteryKit
 
+enum AppMotion {
+    static let quick = Animation.spring(response: 0.22, dampingFraction: 0.82)
+    static let page = Animation.spring(response: 0.34, dampingFraction: 0.86)
+    static let reveal = Animation.spring(response: 0.28, dampingFraction: 0.88)
+}
+
+private struct HoverLiftModifier: ViewModifier {
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering = false
+    var scale: CGFloat = 1.012
+    var yOffset: CGFloat = -1
+    var shadowOpacity: Double = 0.12
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(isEnabled && isHovering ? scale : 1)
+            .offset(y: isEnabled && isHovering ? yOffset : 0)
+            .shadow(color: .black.opacity(isEnabled && isHovering ? shadowOpacity : 0),
+                    radius: isEnabled && isHovering ? 12 : 0,
+                    y: isEnabled && isHovering ? 5 : 0)
+            .animation(AppMotion.quick, value: isHovering)
+            .onHover { hovering in
+                isHovering = hovering
+            }
+    }
+}
+
+private struct InteractiveControlModifier: ViewModifier {
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(isEnabled && isHovering ? 1.035 : 1)
+            .brightness(isEnabled && isHovering ? 0.035 : 0)
+            .shadow(color: .accentColor.opacity(isEnabled && isHovering ? 0.18 : 0),
+                    radius: isEnabled && isHovering ? 10 : 0,
+                    y: isEnabled && isHovering ? 3 : 0)
+            .animation(AppMotion.quick, value: isHovering)
+            .onHover { hovering in
+                isHovering = hovering
+            }
+    }
+}
+
+private struct SoftRowModifier: ViewModifier {
+    @State private var isHovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
+            .padding(.vertical, 2)
+            .background {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(.primary.opacity(isHovering ? 0.055 : 0))
+            }
+            .animation(AppMotion.quick, value: isHovering)
+            .onHover { hovering in
+                isHovering = hovering
+            }
+    }
+}
+
+extension View {
+    func hoverLift(scale: CGFloat = 1.012, yOffset: CGFloat = -1, shadowOpacity: Double = 0.12) -> some View {
+        modifier(HoverLiftModifier(scale: scale, yOffset: yOffset, shadowOpacity: shadowOpacity))
+    }
+
+    func interactiveControl() -> some View {
+        modifier(InteractiveControlModifier())
+    }
+
+    func softHoverRow() -> some View {
+        modifier(SoftRowModifier())
+    }
+
+    func softRevealTransition() -> some View {
+        transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.985)))
+    }
+}
+
 struct PageScroll<Content: View>: View {
     @ViewBuilder var content: () -> Content
 
@@ -51,6 +132,7 @@ struct ContentBar<Actions: View>: View {
 
 struct GlassPanel<Content: View>: View {
     var spacing: CGFloat = 14
+    var interactive: Bool = false
     @ViewBuilder var content: () -> Content
 
     var body: some View {
@@ -60,6 +142,7 @@ struct GlassPanel<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .hoverLift(scale: interactive ? 1.006 : 1, yOffset: interactive ? -1 : 0, shadowOpacity: interactive ? 0.08 : 0)
     }
 }
 
@@ -84,6 +167,7 @@ struct MetricTile: View {
                 .foregroundStyle(tint.opacity(0.72))
                 .padding(16)
         }
+        .hoverLift(scale: 1.018, yOffset: -2, shadowOpacity: 0.14)
     }
 }
 
@@ -102,6 +186,8 @@ struct StatusBanner: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
                 .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .id(text)
+                .softRevealTransition()
         }
     }
 }

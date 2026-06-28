@@ -49,6 +49,11 @@ struct ResultsOverviewView: View {
         }
         .background(.regularMaterial)
         .navigationTitle("验奖结果总览")
-        .onAppear { stats = StatsService.latestVerifications(model.store.allTickets()) }
+        .animation(AppMotion.reveal, value: filtered.count)
+        .onAppear {
+            withAnimation(AppMotion.reveal) {
+                stats = StatsService.latestVerifications(model.store.allTickets())
+            }
+        }
     }
 }
