@@ -39,4 +39,19 @@ final class StoreTests: XCTestCase {
         XCTAssertEqual(rec.drawVersion?.id, v.id)
         XCTAssertEqual(s.allTickets().count, 1)
     }
+
+    func testAllDrawsReturnsIssueDescendingWithLatestVersionAvailable() throws {
+        let s = try makeStore()
+        let old = s.createOrGetDraw(category: .ssq, issue: "24001", source: .officialCWL)
+        _ = s.addVersion(to: old, front: [1,2,3,4,5,6], back: [16], prizes: nil,
+                         drawDate: nil, origin: "fetched", sourceURL: nil)
+        let latest = s.createOrGetDraw(category: .dlt, issue: "24002", source: .officialSporttery)
+        _ = s.addVersion(to: latest, front: [1,2,3,4,5], back: [1,12], prizes: nil,
+                         drawDate: nil, origin: "fetched", sourceURL: nil)
+
+        let draws = s.allDraws()
+
+        XCTAssertEqual(draws.map(\.issue), ["24002", "24001"])
+        XCTAssertEqual(s.latestVersion(draws[0])?.frontNumbers, [1,2,3,4,5])
+    }
 }

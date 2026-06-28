@@ -67,4 +67,15 @@ public final class Store {
         let descriptor = FetchDescriptor<Ticket>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
         return (try? context.fetch(descriptor)) ?? []
     }
+
+    public func allDraws() -> [Draw] {
+        let descriptor = FetchDescriptor<Draw>(
+            sortBy: [
+                SortDescriptor(\.issue, order: .reverse),
+                SortDescriptor(\.category),
+                SortDescriptor(\.source),
+            ]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
 }
