@@ -74,6 +74,12 @@ Pure function over `(category, bet, drawFront, drawBack, prizes)`. Tier tables `
 ### Web service (`webservice/backend/app/`)
 Standard FastAPI layout: `routers/` (auth, draws) → `schemas.py` (Pydantic, **camelCase** over the wire) → `models.py` (SQLAlchemy) → `database.py`. Auth is a shared password → Bearer token (`auth.py`). `config.py` reads env (`.env`): `database_url`, `api_token`, `admin_password`, `read_requires_auth`, `cors_origins`. SQLite by default (file mounted to host so restarts persist), swappable to Postgres. API contract is documented in `webservice/README.md` (`/api/v1`).
 
+## Public Repository Safety
+- This GitHub repository is public. Treat all committed content, including Git history, as publicly visible.
+- Never commit secrets, tokens, passwords, private keys, real `.env` files, production database files, personal ticket images/data, or machine-local build/runtime artifacts.
+- Before committing or pushing, review `git status`, staged diffs, and newly added files for sensitive content. If a leak is suspected, stop and ask before committing; rotating the secret is required even if the file is later removed.
+- Keep `.env`, SQLite/Postgres data directories, Xcode/SwiftPM build outputs, `xcuserdata`, `.DS_Store`, and similar local-only files ignored.
+
 ## Conventions
 - `LotteryKit` has **no third-party dependencies** and is the place for all testable logic; keep view code in `LotteryApp/LotteryApp/` thin.
 - Category and source identifiers are stored as `rawValue` strings in SwiftData (`"ssq"`, `"dlt"`, `"manual"`, etc.) — use the enums, not literals, in new code.
