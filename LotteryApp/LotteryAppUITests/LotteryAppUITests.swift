@@ -48,12 +48,36 @@ final class LotteryAppUITests: XCTestCase {
 
         app.textFields["issueField"].click()
         app.textFields["issueField"].typeText("2026001")
-        app.textFields["frontNumbersField"].click()
-        app.textFields["frontNumbersField"].typeText("01 02 03 04 05 06")
-        app.textFields["backNumbersField"].click()
-        app.textFields["backNumbersField"].typeText("07")
+        for index in 0..<6 {
+            let field = app.textFields["bet_0_front_\(index)"]
+            XCTAssertTrue(field.waitForExistence(timeout: 2))
+            field.click()
+            field.typeText(String(format: "%02d", index + 1))
+        }
+        let backField = app.textFields["bet_0_back_0"]
+        XCTAssertTrue(backField.exists)
+        backField.click()
+        backField.typeText("07")
 
         XCTAssertTrue(verifyButton.isEnabled)
+    }
+
+    @MainActor
+    func testVerifyPageCanAddAnotherBet() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        try requireAccessibleWindow(in: app)
+        select("sidebar_verify", in: app)
+
+        let addButton = app.buttons["addBetButton"]
+        XCTAssertTrue(addButton.waitForExistence(timeout: 2))
+        XCTAssertFalse(app.textFields["bet_1_front_0"].exists)
+
+        addButton.click()
+
+        XCTAssertTrue(app.textFields["bet_1_front_0"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["removeBet_1"].exists)
     }
 
     @MainActor
