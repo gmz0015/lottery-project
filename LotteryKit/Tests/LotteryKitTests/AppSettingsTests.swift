@@ -20,4 +20,28 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertTrue(s2.webServiceEnabled)
         XCTAssertEqual(s2.sourcePriority, [.webService, .officialCWL])
     }
+
+    func testSystemPreferencesDefaultToSystemValues() {
+        let s = AppSettings(defaults: makeDefaults())
+
+        XCTAssertEqual(s.language, .system)
+        XCTAssertEqual(s.timeZoneIdentifier, "")
+        XCTAssertFalse(s.notificationsEnabled)
+        XCTAssertEqual(s.appearance, .system)
+    }
+
+    func testSystemPreferencesRoundtrip() {
+        let d = makeDefaults()
+        let s = AppSettings(defaults: d)
+        s.language = .english
+        s.timeZoneIdentifier = "Asia/Shanghai"
+        s.notificationsEnabled = true
+        s.appearance = .dark
+
+        let s2 = AppSettings(defaults: d)
+        XCTAssertEqual(s2.language, .english)
+        XCTAssertEqual(s2.timeZoneIdentifier, "Asia/Shanghai")
+        XCTAssertTrue(s2.notificationsEnabled)
+        XCTAssertEqual(s2.appearance, .dark)
+    }
 }

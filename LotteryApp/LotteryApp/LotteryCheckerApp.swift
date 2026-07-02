@@ -38,6 +38,9 @@ enum SidebarItem: String, CaseIterable, Identifiable {
 struct LotteryCheckerApp: App {
     @State private var model = AppModel()
     @State private var selection: SidebarItem? = .dashboard
+    @AppStorage(AppSettings.Keys.language) private var languageRawValue = LanguagePreference.system.rawValue
+    @AppStorage(AppSettings.Keys.timeZoneIdentifier) private var timeZoneIdentifier = ""
+    @AppStorage(AppSettings.Keys.appearance) private var appearanceRawValue = AppearancePreference.system.rawValue
 
     var body: some Scene {
         WindowGroup {
@@ -86,8 +89,26 @@ struct LotteryCheckerApp: App {
             }
             .animation(AppMotion.page, value: selection)
             .environment(model)
+            .environment(\.locale, selectedLanguage.locale)
+            .environment(\.timeZone, selectedTimeZone)
+            .preferredColorScheme(selectedAppearance.colorScheme)
             .frame(minWidth: 900, minHeight: 600)
         }
+    }
+
+    private var selectedLanguage: LanguagePreference {
+        LanguagePreference(rawValue: languageRawValue) ?? .system
+    }
+
+    private var selectedTimeZone: TimeZone {
+        guard !timeZoneIdentifier.isEmpty, let timeZone = TimeZone(identifier: timeZoneIdentifier) else {
+            return .autoupdatingCurrent
+        }
+        return timeZone
+    }
+
+    private var selectedAppearance: AppearancePreference {
+        AppearancePreference(rawValue: appearanceRawValue) ?? .system
     }
 }
 
