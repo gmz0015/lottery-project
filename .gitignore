@@ -2,6 +2,7 @@
 xcuserdata/
 build/
 DerivedData/
+.worktrees/
 *.xcuserstate
 
 # Swift Package Manager
