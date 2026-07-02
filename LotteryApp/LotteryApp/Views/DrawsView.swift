@@ -3,10 +3,10 @@ import LotteryKit
 
 struct DrawsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(AppOverlayCenter.self) private var overlayCenter
     @State private var draws: [Draw] = []
     @State private var categoryFilter = "all"
     @State private var sourceFilter = "all"
-    @State private var status = ""
     @State private var refreshingDrawID: UUID?
     @State private var entrySheetMode: DrawEntrySheet.Mode?
 
@@ -86,12 +86,6 @@ struct DrawsView: View {
                 }
             } else {
                 VStack(spacing: 0) {
-                    if !status.isEmpty {
-                        StatusBanner(text: status)
-                            .padding(.horizontal, 20)
-                            .padding(.top, 14)
-                    }
-
                     Table(filteredDraws) {
                         TableColumn("彩种") { draw in
                             Label(categoryName(draw), systemImage: categoryIcon(draw))
@@ -179,7 +173,6 @@ struct DrawsView: View {
         .background(.regularMaterial)
         .navigationTitle("开奖信息")
         .animation(AppMotion.reveal, value: draws.count)
-        .animation(AppMotion.reveal, value: status)
         .animation(AppMotion.reveal, value: refreshingDrawID)
         .onAppear(perform: reloadDraws)
         .sheet(item: $entrySheetMode) { mode in
@@ -198,14 +191,14 @@ struct DrawsView: View {
     private func refresh(_ draw: Draw) async {
         guard let category = Category(rawValue: draw.category),
               let source = DataSourceKind(rawValue: draw.source) else {
-            status = "错误：开奖记录的彩种或来源无效"
+            overlayCenter.showToast("错误：开奖记录的彩种或来源无效", style: .error)
             return
         }
         let issue = draw.issue
         withAnimation(AppMotion.reveal) {
             refreshingDrawID = draw.id
-            status = "正在刷新 \(category.displayName) 第 \(issue) 期"
         }
+        overlayCenter.showToast("正在刷新 \(category.displayName) 第 \(issue) 期", style: .info)
         defer {
             withAnimation(AppMotion.reveal) {
                 refreshingDrawID = nil
@@ -215,17 +208,11 @@ struct DrawsView: View {
         do {
             _ = try await model.fetchService.fetch(category: category, issue: issue, source: source, forceRefresh: true)
             reloadDraws()
-            withAnimation(AppMotion.reveal) {
-                status = "已刷新 \(category.displayName) 第 \(issue) 期"
-            }
+            overlayCenter.showToast("已刷新 \(category.displayName) 第 \(issue) 期", style: .success)
         } catch DrawSourceError.notFound {
-            withAnimation(AppMotion.reveal) {
-                status = "错误：该期未开奖或不存在"
-            }
+            overlayCenter.showToast("错误：该期未开奖或不存在", style: .error)
         } catch {
-            withAnimation(AppMotion.reveal) {
-                status = "错误：\(error.localizedDescription)"
-            }
+            overlayCenter.showToast("错误：\(error.localizedDescription)", style: .error)
         }
     }
 

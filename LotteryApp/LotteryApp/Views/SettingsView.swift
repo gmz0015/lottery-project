@@ -7,6 +7,7 @@ import AppKit
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(AppOverlayCenter.self) private var overlayCenter
     @State private var modelBaseURL = ""
     @State private var modelAPIKey = ""
     @State private var modelName = ""
@@ -20,7 +21,6 @@ struct SettingsView: View {
     @State private var notificationAuthorizationStatus: UNAuthorizationStatus = .notDetermined
     @State private var notificationMessage = ""
     @State private var isRequestingNotificationAuthorization = false
-    @State private var saved = false
 
     var body: some View {
         PageScroll {
@@ -125,28 +125,15 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.glassProminent)
                 .interactiveControl()
-
-                StatusBanner(text: saved ? "已保存" : "")
             }
         }
         .navigationTitle("设置")
-        .animation(AppMotion.reveal, value: saved)
         .animation(AppMotion.reveal, value: wsEnabled)
         .animation(AppMotion.reveal, value: notificationAuthorizationStatus)
         .onAppear {
             load()
             refreshNotificationAuthorizationStatus()
         }
-        .onChange(of: modelBaseURL) { _, _ in saved = false }
-        .onChange(of: modelAPIKey) { _, _ in saved = false }
-        .onChange(of: modelName) { _, _ in saved = false }
-        .onChange(of: wsBaseURL) { _, _ in saved = false }
-        .onChange(of: wsToken) { _, _ in saved = false }
-        .onChange(of: wsEnabled) { _, _ in saved = false }
-        .onChange(of: language) { _, _ in saved = false }
-        .onChange(of: timeZoneIdentifier) { _, _ in saved = false }
-        .onChange(of: notificationsEnabled) { _, _ in saved = false }
-        .onChange(of: appearance) { _, _ in saved = false }
     }
 
     private func settingsField(_ title: String, placeholder: String, text: Binding<String>) -> some View {
@@ -181,9 +168,7 @@ struct SettingsView: View {
         if notificationsEnabled, notificationAuthorizationStatus != .authorized {
             requestNotificationAuthorization()
         }
-        withAnimation(AppMotion.reveal) {
-            saved = true
-        }
+        overlayCenter.showToast("已保存", style: .success)
     }
 
     private var notificationAuthorizationText: String {

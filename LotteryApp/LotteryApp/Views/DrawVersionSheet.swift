@@ -4,6 +4,7 @@ import LotteryKit
 
 struct DrawVersionSheet: View {
     @Environment(AppModel.self) private var model
+    @Environment(AppOverlayCenter.self) private var overlayCenter
     @Environment(\.dismiss) private var dismiss
     let draw: Draw
     let ticket: Ticket
@@ -11,7 +12,6 @@ struct DrawVersionSheet: View {
 
     @State private var frontText = ""
     @State private var backText = ""
-    @State private var status = ""
 
     private var category: Category { Category(rawValue: draw.category) ?? .ssq }
 
@@ -72,7 +72,6 @@ struct DrawVersionSheet: View {
                         .textFieldStyle(.roundedBorder)
                     TextField("后区/蓝球（空格分隔）", text: $backText)
                         .textFieldStyle(.roundedBorder)
-                    StatusBanner(text: status)
                     HStack {
                         Button {
                             addManualVersion()
@@ -95,7 +94,6 @@ struct DrawVersionSheet: View {
         }
         .frame(width: 520, height: 560)
         .background(.regularMaterial)
-        .animation(AppMotion.reveal, value: status)
     }
 
     private func parseNums(_ s: String) -> [Int] {
@@ -105,9 +103,7 @@ struct DrawVersionSheet: View {
     private func addManualVersion() {
         let front = parseNums(frontText), back = parseNums(backText)
         if let err = NumberValidation.validate(category: category, front: front, back: back) {
-            withAnimation(AppMotion.reveal) {
-                status = err
-            }
+            overlayCenter.showToast(err, style: .error)
             return
         }
         let version: DrawVersion
@@ -122,8 +118,8 @@ struct DrawVersionSheet: View {
         withAnimation(AppMotion.reveal) {
             frontText = ""
             backText = ""
-            status = "已保存新版本并追加验奖记录"
         }
+        overlayCenter.showToast("已保存新版本并追加验奖记录", style: .success)
         onChange()
     }
 

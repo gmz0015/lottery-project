@@ -171,27 +171,6 @@ struct MetricTile: View {
     }
 }
 
-struct StatusBanner: View {
-    let text: String
-
-    private var isError: Bool {
-        text.hasPrefix("错误") || text.hasPrefix("该期") || text.contains("失败")
-    }
-
-    var body: some View {
-        if !text.isEmpty {
-            Label(text, systemImage: isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                .font(.callout)
-                .foregroundStyle(isError ? .red : .secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .id(text)
-                .softRevealTransition()
-        }
-    }
-}
-
 struct EmptyState: View {
     let title: String
     let message: String

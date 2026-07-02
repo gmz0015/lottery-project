@@ -10,6 +10,7 @@ struct DrawEntrySheet: View {
     }
 
     @Environment(AppModel.self) private var model
+    @Environment(AppOverlayCenter.self) private var overlayCenter
     @Environment(\.dismiss) private var dismiss
 
     let initialMode: Mode
@@ -25,7 +26,6 @@ struct DrawEntrySheet: View {
     @State private var drawDate = Date()
     @State private var includeDate = false
     @State private var fetchSourceChoice: FetchSourceChoice = .official
-    @State private var status = ""
     @State private var isWorking = false
 
     init(initialMode: Mode, onChange: @escaping () -> Void) {
@@ -66,8 +66,6 @@ struct DrawEntrySheet: View {
 
                 formBody
 
-                StatusBanner(text: status)
-
                 HStack {
                     Button {
                         Task { await submit() }
@@ -97,10 +95,7 @@ struct DrawEntrySheet: View {
         .animation(AppMotion.reveal, value: mode)
         .animation(AppMotion.reveal, value: includeDate)
         .animation(AppMotion.reveal, value: fetchSourceChoice)
-        .animation(AppMotion.reveal, value: status)
         .animation(AppMotion.reveal, value: isWorking)
-        .onChange(of: category) { _, _ in status = "" }
-        .onChange(of: mode) { _, _ in status = "" }
         .onAppear {
             mode = initialMode
         }
@@ -190,7 +185,6 @@ struct DrawEntrySheet: View {
 
     private func submit() async {
         withAnimation(AppMotion.reveal) {
-            status = ""
             isWorking = true
         }
         defer {
@@ -207,11 +201,11 @@ struct DrawEntrySheet: View {
             }
             onChange()
         } catch DrawSourceError.notFound {
-            status = "错误：该期未开奖或不存在"
+            overlayCenter.showToast("错误：该期未开奖或不存在", style: .error)
         } catch DrawSourceError.badResponse(let message) {
-            status = "错误：\(message)"
+            overlayCenter.showToast("错误：\(message)", style: .error)
         } catch {
-            status = "错误：\(error.localizedDescription)"
+            overlayCenter.showToast("错误：\(error.localizedDescription)", style: .error)
         }
     }
 
@@ -227,18 +221,19 @@ struct DrawEntrySheet: View {
         backText = ""
         firstPrizeText = ""
         secondPrizeText = ""
-        status = "已保存 \(category.displayName) 第 \(issue.trimmingCharacters(in: .whitespacesAndNewlines)) 期"
+        overlayCenter.showToast("已保存 \(category.displayName) 第 \(issue.trimmingCharacters(in: .whitespacesAndNewlines)) 期",
+                                style: .success)
     }
 
     private func fetchEntry() async throws {
         let source = selectedFetchSource
         let normalizedIssue = issue.trimmingCharacters(in: .whitespacesAndNewlines)
-        status = "正在从\(source.displayName)获取第 \(normalizedIssue) 期"
+        overlayCenter.showToast("正在从\(source.displayName)获取第 \(normalizedIssue) 期", style: .info)
         _ = try await model.fetchService.fetch(category: category,
                                                issue: normalizedIssue,
                                                source: source,
                                                forceRefresh: true)
-        status = "已获取 \(category.displayName) 第 \(normalizedIssue) 期"
+        overlayCenter.showToast("已获取 \(category.displayName) 第 \(normalizedIssue) 期", style: .success)
     }
 
     private func prizeAmounts() throws -> [String: Int]? {

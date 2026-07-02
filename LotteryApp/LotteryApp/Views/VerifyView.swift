@@ -5,6 +5,7 @@ import LotteryKit
 
 struct VerifyView: View {
     @Environment(AppModel.self) private var model
+    @Environment(AppOverlayCenter.self) private var overlayCenter
     @State private var imageData: Data?
     @State private var category: Category = .ssq
     @State private var issue = ""
@@ -12,7 +13,6 @@ struct VerifyView: View {
     @State private var manualDrawFrontText = ""
     @State private var manualDrawBackText = ""
     @State private var selectedSource: DataSourceKind = .officialCWL
-    @State private var status = ""
     @State private var busy = false
 
     private let imageStore = ImageStore()
@@ -127,18 +127,11 @@ struct VerifyView: View {
                 }
             }
 
-            if busy {
-                ProgressView("处理中")
-                    .softRevealTransition()
-            }
-
-            StatusBanner(text: status)
         }
         .navigationTitle("验奖")
         .animation(AppMotion.reveal, value: imageData != nil)
         .animation(AppMotion.reveal, value: selectedSource)
         .animation(AppMotion.reveal, value: busy)
-        .animation(AppMotion.reveal, value: status)
         .animation(AppMotion.reveal, value: editableBets.count)
         .onAppear { ensureSelectedSource() }
         .onChange(of: category) { _, newValue in
@@ -154,15 +147,19 @@ struct VerifyView: View {
         if panel.runModal() == .OK, let url = panel.url {
             withAnimation(AppMotion.reveal) {
                 imageData = try? Data(contentsOf: url)
-                status = ""
+                overlayCenter.clearToast()
             }
         }
     }
 
     private func recognize() async {
         guard let imageData else { return }
-        busy = true; status = "识别中…"
-        defer { busy = false }
+        busy = true
+        overlayCenter.showLoading("识别中…")
+        defer {
+            busy = false
+            overlayCenter.hideLoading()
+        }
         do {
             let t = try await model.recognizer.recognize(imageData: imageData)
             category = t.category
@@ -171,11 +168,11 @@ struct VerifyView: View {
                 ? [EditableBet(category: t.category)]
                 : t.bets.map { EditableBet(bet: $0, category: t.category) }
             selectedSource = model.availableSources(for: t.category).first ?? .manual
-            status = "识别完成，请核对"
+            overlayCenter.showToast("识别完成，请核对", style: .success)
         } catch RecognizerError.notConfigured {
-            status = "错误：请先在设置中配置模型"
+            overlayCenter.showToast("错误：请先在设置中配置模型", style: .error)
         } catch {
-            status = "错误：识别失败 \(error.localizedDescription)"
+            overlayCenter.showToast("错误：识别失败 \(error.localizedDescription)", style: .error)
         }
     }
 
@@ -184,17 +181,24 @@ struct VerifyView: View {
         do {
             bets = try validatedBets()
         } catch {
-            status = "错误：\(error.localizedDescription)"
+            overlayCenter.showToast("错误：\(error.localizedDescription)", style: .error)
             return
         }
         let trimmedIssue = issue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedIssue.isEmpty else { status = "错误：请填写期数"; return }
-        if let err = manualDrawValidationError() {
-            status = "错误：\(err)"
+        guard !trimmedIssue.isEmpty else {
+            overlayCenter.showToast("错误：请填写期数", style: .error)
             return
         }
-        busy = true; status = "验奖中…"
-        defer { busy = false }
+        if let err = manualDrawValidationError() {
+            overlayCenter.showToast("错误：\(err)", style: .error)
+            return
+        }
+        busy = true
+        overlayCenter.showLoading("验奖中…")
+        defer {
+            busy = false
+            overlayCenter.hideLoading()
+        }
         do {
             var fileName: String?
             if let imageData { fileName = try? imageStore.save(imageData) }
@@ -210,18 +214,19 @@ struct VerifyView: View {
             _ = model.store.addVerification(ticket: ticket, drawVersion: version,
                                             results: evaluation.results, totalAmount: evaluation.totalAmount)
             if evaluation.isWin {
-                status = evaluation.totalAmount > 0
+                overlayCenter.showToast(evaluation.totalAmount > 0
                     ? "中奖：¥\(evaluation.totalAmount)（共 \(unitCount) 注）"
-                    : "中奖：金额以官方为准（共 \(unitCount) 注）"
+                    : "中奖：金额以官方为准（共 \(unitCount) 注）",
+                    style: .success)
             } else {
-                status = "未中奖（共 \(unitCount) 注）"
+                overlayCenter.showToast("未中奖（共 \(unitCount) 注）", style: .info)
             }
         } catch DrawSourceError.notFound {
-            status = "错误：该期未开奖或不存在"
+            overlayCenter.showToast("错误：该期未开奖或不存在", style: .error)
         } catch DrawSourceError.badResponse(let message) {
-            status = "错误：\(message)"
+            overlayCenter.showToast("错误：\(message)", style: .error)
         } catch {
-            status = "错误：\(error.localizedDescription)"
+            overlayCenter.showToast("错误：\(error.localizedDescription)", style: .error)
         }
     }
 

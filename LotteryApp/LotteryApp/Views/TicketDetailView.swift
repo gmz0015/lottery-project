@@ -4,10 +4,10 @@ import LotteryKit
 
 struct TicketDetailView: View {
     @Environment(AppModel.self) private var model
+    @Environment(AppOverlayCenter.self) private var overlayCenter
     let ticket: Ticket
     @State private var refreshToken = 0
     @State private var sheetDraw: Draw?
-    @State private var status = ""
     @State private var busy = false
     private let imageStore = ImageStore()
 
@@ -53,11 +53,6 @@ struct TicketDetailView: View {
                     }
                 }
 
-                if busy {
-                    ProgressView("验奖中")
-                        .softRevealTransition()
-                }
-                StatusBanner(text: status)
             }
 
             GlassPanel {
@@ -77,7 +72,6 @@ struct TicketDetailView: View {
         }
         .navigationTitle("第 \(ticket.issue) 期")
         .animation(AppMotion.reveal, value: busy)
-        .animation(AppMotion.reveal, value: status)
         .animation(AppMotion.reveal, value: refreshToken)
         .sheet(item: $sheetDraw) { draw in
             DrawVersionSheet(draw: draw, ticket: ticket) { refreshToken += 1 }
@@ -123,8 +117,11 @@ struct TicketDetailView: View {
 
     private func reverify(source: DataSourceKind, force: Bool) async {
         busy = true
-        status = "验奖中…"
-        defer { busy = false }
+        overlayCenter.showLoading("验奖中…")
+        defer {
+            busy = false
+            overlayCenter.hideLoading()
+        }
         do {
             let version = try await model.fetchService.fetch(category: category, issue: ticket.issue,
                                                              source: source, forceRefresh: force)
@@ -137,14 +134,14 @@ struct TicketDetailView: View {
                                             results: evaluation.results, totalAmount: evaluation.totalAmount)
             withAnimation(AppMotion.reveal) {
                 refreshToken += 1
-                status = "已追加验奖记录（\(source.displayName)）"
             }
+            overlayCenter.showToast("已追加验奖记录（\(source.displayName)）", style: .success)
         } catch DrawSourceError.notFound {
-            status = "该期未开奖或不存在"
+            overlayCenter.showToast("该期未开奖或不存在", style: .error)
         } catch DrawSourceError.badResponse(let message) {
-            status = "错误：\(message)"
+            overlayCenter.showToast("错误：\(message)", style: .error)
         } catch {
-            status = "错误：\(error.localizedDescription)"
+            overlayCenter.showToast("错误：\(error.localizedDescription)", style: .error)
         }
     }
 }
